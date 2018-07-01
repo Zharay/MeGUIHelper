@@ -167,7 +167,7 @@ videoFile getMKVInfo(const char* filepath)
 				catch (...)
 				{
 					SetColor(14);
-					cout << "Warning: Could not determine video framerate. Defaulting to 23.976.\n";
+					cout << "[" << tempTrack.filename << "] Warning: Could not determine video framerate. Defaulting to 23.976.\n";
 					SetColor(2);
 				}
 			}
@@ -197,7 +197,7 @@ videoFile getMKVInfo(const char* filepath)
 				catch (...)
 				{
 					SetColor(14);
-					cout << "Warning: Could not determine video height. Defaulting to 16:9\n";
+					cout << "[" << tempTrack.filename << "] Warning: Could not determine video height. Defaulting to 16:9\n";
 					SetColor(7);
 				}
 			}
@@ -301,29 +301,44 @@ videoFile getMKVInfo(const char* filepath)
 
 		// But removing the rest?
 		if (!customEpisodeRegex.empty() && regex_match(fileInfo.outFileName, regex(customEpisodeRegex)))
-		{
+		{ // Custom RegEx
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1$2");
 		}
 		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*")))
-		{
+		{ // [Title] - [00]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*"), "$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
 		}
 		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)\\b.*")))
-		{
+		{// [Title ][00]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)\\b.*"), "$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
 		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*")))
+		{ // [Title] - [00]v0
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)v\\d\\b.*")))
+		{// [Title ][00]v0
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)v\\d\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+		}
 		else if (regex_match(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*")))
-		{
+		{// [Title] [S00E00]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (S\\d\\dE\\d\\d).*"), "$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*"), "$1$2");
 		}
 		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*")))
-		{
+		{// [Title] [S00.E00]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d\\u002E\\d\\d).*"), "$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*")))
+		{// [Title] [S00 E00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d E\\d\\d).*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*"), "$1$2");
 		}
 
 		// And what about that data at the end?
@@ -378,7 +393,7 @@ videoFile getMKVInfo(const char* filepath)
 				if (i == int(fileInfo.audioTracks.size()) - 1)
 				{
 					SetColor(14);
-					cout << "WARNING: Could not find proper audio track! Defaulting to first track.\n";
+					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper audio track! Defaulting to first track.\n";
 					SetColor(7);
 					i = 0;
 					break;
@@ -407,7 +422,7 @@ videoFile getMKVInfo(const char* filepath)
 				if (i == int(fileInfo.SubtitleTracks.size()) - 1)
 				{
 					SetColor(14);
-					cout << "WARNING: Could not find proper subtitle track! Defaulting to first track.\n";
+					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper subtitle track! Defaulting to first track.\n";
 					SetColor(7);
 					i = 0;
 					break;
