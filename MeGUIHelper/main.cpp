@@ -267,6 +267,7 @@ videoFile getMKVInfo(const char* filepath)
 	int found = -1;
 
 	fileInfo.outFileName = fileInfo.fileName;
+	fileInfo.subDir = fileInfo.outFileName;
 
 	if (bCleanFilename)
 	{
@@ -362,10 +363,6 @@ videoFile getMKVInfo(const char* filepath)
 				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
 			} while (fileInfo.outFileName.find("(") != string::npos);
 		}
-	}
-	else if (bCreateSubDir)
-	{
-		fileInfo.subDir = fileInfo.outFileName;
 	}
 
 	// Clean up end spaces if any
