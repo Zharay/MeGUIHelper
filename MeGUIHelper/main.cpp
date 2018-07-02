@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <process.h>
+#include <direct.h>
 #include <vector>
 #include <string>
 #include <iterator>
@@ -81,6 +82,8 @@ vector<videoFile> videoList;
 map<string, bool> attchmentList;
 int jobNumber = 1;
 
+
+
 void SetColor(int color)
 {
 	HANDLE hConsole;
@@ -88,7 +91,7 @@ void SetColor(int color)
 	SetConsoleTextAttribute(hConsole, color);
 }
 
-videoFile getMKVInfo(const char* filepath)
+videoFile getMKVInfo(const char* filepath, int jobNum, int maxJobs)
 {
 	string cmdstr = mkvtoolnixDir + "mkvinfo.exe \"" + string(filepath) + "\"";
 
@@ -136,6 +139,10 @@ videoFile getMKVInfo(const char* filepath)
 
 	fileInfo.filePath = filepath;
 	fileInfo.fileName = fileInfo.filePath.substr(fileInfo.filePath.find_last_of("\\") + 1, fileInfo.filePath.length() - fileInfo.filePath.find_last_of("\\") - 5);
+
+	SetColor(10);
+	cout << "[Job " << jobNum << "/" << maxJobs << "] " << fileInfo.fileName << endl;
+	SetColor(7);
 
 	// Find the tracks
 	nextPos = pos1 = result.find("|+ Tracks") + string("|+ Tracks").size();
@@ -876,8 +883,9 @@ int main(int argc, char *argv[])
 {
 	videoFile tempVideo;
 	string tempArg;
-
 	vector<string> args;
+	vector<string> vidPaths;
+
 	for (size_t i = 0; i < argc; ++i)
 	{
 		tempArg = argv[i];
@@ -912,7 +920,15 @@ int main(int argc, char *argv[])
 		tempArg = argv[i];
 		if (tempArg.length() > 4 && tempArg.substr(tempArg.length() - 4, 4) == ".mkv")
 		{
-			tempVideo = getMKVInfo(tempArg.data());
+			vidPaths.push_back(tempArg);
+		}
+	}
+
+	for (int i = 0; i < vidPaths.size(); i++)
+	{
+		if (vidPaths[i].length() > 4 && vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mkv")
+		{
+			tempVideo = getMKVInfo(vidPaths[i].data(), i+1, vidPaths.size());
 			if (tempVideo.fileName == "")
 				continue;
 			else if (tempVideo.audioTracks.empty())
