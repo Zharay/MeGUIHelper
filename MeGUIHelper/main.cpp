@@ -76,12 +76,13 @@ struct videoFile {
 	vector<trackInfo> attachmentTracks;
 	int selectedAudioTrack = 0;
 	int selecteSubtitleTrack = -1;
+	int jobNum = -1;
 };
 
 vector<videoFile> videoList;
 map<string, bool> attchmentList;
-int jobNumber = 1;
-
+int maxJobs = 0;
+int jobNumber = 0;
 
 
 void SetColor(int color)
@@ -91,7 +92,7 @@ void SetColor(int color)
 	SetConsoleTextAttribute(hConsole, color);
 }
 
-videoFile getMKVInfo(const char* filepath, int jobNum, int maxJobs)
+videoFile getMKVInfo(const char* filepath, int jobNum)
 {
 	string cmdstr = mkvtoolnixDir + "mkvinfo.exe \"" + string(filepath) + "\"";
 
@@ -124,15 +125,19 @@ videoFile getMKVInfo(const char* filepath, int jobNum, int maxJobs)
 
 	int pos1, pos2, nextPos;
 
-	if (result.find("Error") != string::npos)
+	if (result.find("Error") != string::npos || result.find("Segment: size 0") != string::npos)
 	{
+		SetColor(12);
+		cout << "ERROR: mkvinfo didn't return a good result!\n" << filepath << endl;
+		SetColor(7);
+
 		cout << result << endl;
 		return fileInfo;
 	}
 	else if (result.empty())
 	{
 		SetColor(12);
-		cout << "ERROR: mkvinfo didn't return a result!.\n";
+		cout << "ERROR: mkvinfo didn't return a result!\n";
 		SetColor(7);
 		return fileInfo;
 	}
@@ -140,8 +145,10 @@ videoFile getMKVInfo(const char* filepath, int jobNum, int maxJobs)
 	fileInfo.filePath = filepath;
 	fileInfo.fileName = fileInfo.filePath.substr(fileInfo.filePath.find_last_of("\\") + 1, fileInfo.filePath.length() - fileInfo.filePath.find_last_of("\\") - 5);
 
+	fileInfo.jobNum = jobNum;
+
 	SetColor(10);
-	cout << "[Job " << jobNum << "/" << maxJobs << "] " << fileInfo.fileName << endl;
+	cout << "[Job " << fileInfo.jobNum << "/" << maxJobs << "] MKV Info: " << fileInfo.fileName << endl;
 	SetColor(7);
 
 	// Find the tracks
@@ -444,6 +451,10 @@ videoFile getMKVInfo(const char* filepath, int jobNum, int maxJobs)
 
 void extractMKV(videoFile file)
 {
+	SetColor(10);
+	cout << "[Job " << file.jobNum << "/" << maxJobs << "] MKV Extract: " << file.fileName << endl;
+	SetColor(7);
+
 	if (!bExtract264 && file.selectedAudioTrack < 0 && file.selecteSubtitleTrack < 0 && (!bDoAttachments || (bDoAttachments && !file.attachmentTracks.size())))
 	{
 		SetColor(14);
@@ -477,6 +488,10 @@ void createMeGUIJobs(videoFile file)
 	string lJobTag = "\t\t<string>";
 	string rJobTag = "</string>\n";
 	string tempList = "";
+
+	SetColor(10);
+	cout << "[Job " << file.jobNum << "/" << maxJobs << "] Creating MeGUI Jobs: " << file.fileName << endl;
+	SetColor(7);
 
 	// AVS Script
 	ofstream myAVSFile(string(WorkDir + file.outFileName + ".avs"));
@@ -685,6 +700,10 @@ void clearMeGUIJobs()
 		SetColor(7);
 		return;
 	}
+
+	SetColor(10);
+	cout << "Clearing MeGUI Jobs" << endl;
+	SetColor(7);
 
 	ofstream myJobListWrite(string(MeGUIDir + "joblists.xml"));
 	if (myJobListWrite.is_open())
@@ -921,27 +940,24 @@ int main(int argc, char *argv[])
 		if (tempArg.length() > 4 && tempArg.substr(tempArg.length() - 4, 4) == ".mkv")
 		{
 			vidPaths.push_back(tempArg);
+			maxJobs++;
 		}
 	}
 
 	for (int i = 0; i < vidPaths.size(); i++)
 	{
-		if (vidPaths[i].length() > 4 && vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mkv")
+		tempVideo = getMKVInfo(vidPaths[i].data(), i+1);
+		if (tempVideo.fileName == "")
+			continue;
+		else if (tempVideo.audioTracks.empty())
 		{
-			tempVideo = getMKVInfo(vidPaths[i].data(), i+1, vidPaths.size());
-			if (tempVideo.fileName == "")
-				continue;
-			else if (tempVideo.audioTracks.empty())
-			{
-				SetColor(14);
-				cout << "ERROR: No audio detected!\n";
-				SetColor(7);
-				continue;
-			}
-
-			videoList.push_back(tempVideo);
+			SetColor(14);
+			cout << "ERROR: No audio detected!\n";
+			SetColor(7);
+			continue;
 		}
 
+		videoList.push_back(tempVideo);
 	}
 
 	if (videoList.size() != 0)
