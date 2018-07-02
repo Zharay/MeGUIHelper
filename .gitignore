@@ -6,3 +6,11 @@
 *.exe
 
 *.sdf
+
+*.ilk
+
+*.log
+
+*.idb
+
+*.tlog
