@@ -24,4 +24,9 @@
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\[Danny%27s Stuff]\[Projects]\MeGUIHelper\MeGUIHelper\MediaInfoDLL\MediaInfoDLL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

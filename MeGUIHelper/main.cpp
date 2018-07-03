@@ -1,3 +1,20 @@
+#ifdef MEDIAINFO_LIBRARY
+    #include "MediaInfo/MediaInfo.h" //Staticly-loaded library (.lib or .a or .so)
+    #define MediaInfoNameSpace MediaInfoLib;
+#else //MEDIAINFO_LIBRARY
+    #include "MediaInfoDLL/MediaInfoDLL.h" //Dynamicly-loaded library (.dll or .so)
+    #define MediaInfoNameSpace MediaInfoDLL;
+#endif //MEDIAINFO_LIBRARY
+using namespace MediaInfoNameSpace;
+
+#ifdef __MINGW32__
+    #ifdef _UNICODE
+        #define _itot _itow
+    #else //_UNICODE
+        #define _itot itoa
+    #endif //_UNICODE
+#endif //__MINGW32
+
 #include <iostream>
 #include <fstream>
 #include <process.h>
@@ -92,6 +109,179 @@ void SetColor(int color)
 	SetConsoleTextAttribute(hConsole, color);
 }
 
+void cleanFilename(videoFile &fileInfo)
+{
+	vector<int> pos;
+	int found = -1;
+	int pos1, pos2;
+
+	fileInfo.outFileName = fileInfo.fileName;
+	fileInfo.subDir = fileInfo.outFileName;
+
+	if (bCleanFilename)
+	{
+		pos.erase(pos.begin(), pos.end());
+
+		// If we have nothing but .s for a filename, lets get rid of them.
+		do {
+			found = fileInfo.fileName.find(".", found + 1);
+			if (found != string::npos)
+				pos.push_back(found);
+		} while (found != string::npos);
+
+		if (pos.size() > 3)
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("\\u002E"), " ");
+
+		// If we have nothing but _s for a filename, lets get rid of them.
+		do {
+			found = fileInfo.fileName.find("_", found + 1);
+			if (found != string::npos)
+				pos.push_back(found);
+		} while (found != string::npos);
+
+		if (pos.size() > 2)
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("_"), " ");
+
+		// Removing group is easy.
+		if (fileInfo.outFileName[0] == '[')
+		{
+			int endGroup = int(fileInfo.outFileName.find_first_of("]")) + 2;
+			fileInfo.outFileName = fileInfo.outFileName.substr(endGroup, int(fileInfo.outFileName.size()) - endGroup);
+		}
+
+		// But removing the rest?
+		if (!customEpisodeRegex.empty() && regex_match(fileInfo.outFileName, regex(customEpisodeRegex)))
+		{ // Custom RegEx
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*")))
+		{ // [Title] - [00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)\\b.*")))
+		{// [Title ][00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*")))
+		{ // [Title] - [00]v0
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)v\\d\\b.*")))
+		{// [Title ][00]v0
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)v\\d\\b.*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*")))
+		{// [Title] [S00E00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (S\\d\\dE\\d\\d).*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*")))
+		{// [Title] [S00.E00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d\\u002E\\d\\d).*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*"), "$1$2");
+		}
+		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*")))
+		{// [Title] [S00 E00]
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d E\\d\\d).*"), "$1");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*"), "$1$2");
+		}
+
+		// And what about that data at the end?
+		if (bAggressiveClean && fileInfo.outFileName.find("[") != string::npos)
+		{
+			do {
+				pos1 = fileInfo.outFileName.find("[");
+				pos2 = fileInfo.outFileName.find("]") + 1;
+				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
+				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
+			} while (fileInfo.outFileName.find("[") != string::npos);
+		}
+
+		// Now for optional (parenthesis)
+		if (bAggressiveClean && bCleanParenthesis && fileInfo.outFileName.find("(") != string::npos)
+		{
+			do {
+				pos1 = fileInfo.outFileName.find("(");
+				pos2 = fileInfo.outFileName.find(")") + 1;
+				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
+				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
+			} while (fileInfo.outFileName.find("(") != string::npos);
+		}
+	}
+
+	// Clean up end spaces if any
+	while (!fileInfo.subDir.empty() && fileInfo.subDir[int(fileInfo.subDir.size()) - 1] == ' ')
+		fileInfo.subDir.pop_back();
+	while (!fileInfo.outFileName.empty() && fileInfo.outFileName[int(fileInfo.outFileName.size()) - 1] == ' ')
+		fileInfo.outFileName.pop_back();
+
+	if (fileInfo.audioTracks.size() == 1)
+		fileInfo.selectedAudioTrack = 0;
+	else if (!fileInfo.audioTracks.size())
+		fileInfo.selectedAudioTrack = -1;
+	else
+	{
+		int i = 0;
+		if (bRelativeTrack && forcedAudioTrack > 0 && fileInfo.audioTracks.size() <= forcedAudioTrack)
+			i = forcedAudioTrack - 1;
+		else {
+			for (; i < fileInfo.audioTracks.size(); i++)
+			{
+				if (forcedAudioTrack == fileInfo.audioTracks[i].trackNum)
+					break;
+				if (fileInfo.audioTracks[i].language == defaultAudioLang)
+					break;
+				if (i == int(fileInfo.audioTracks.size()) - 1)
+				{
+					SetColor(14);
+					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper audio track! Defaulting to first track.\n";
+					SetColor(7);
+					i = 0;
+					break;
+				}
+			}
+		}
+		fileInfo.selectedAudioTrack = i;
+	}
+}
+
+void selectTracks(videoFile &fileInfo)
+{
+	if (fileInfo.SubtitleTracks.size() == 1)
+		fileInfo.selecteSubtitleTrack = 0;
+	else if (!fileInfo.SubtitleTracks.size())
+		fileInfo.selecteSubtitleTrack = -1;
+	else
+	{
+		int i = 0;
+		if (bRelativeTrack && forcedSubtitleTrack > 0 && fileInfo.audioTracks.size() <= forcedSubtitleTrack)
+			i = forcedSubtitleTrack - 1;
+		else {
+			for (; i < fileInfo.SubtitleTracks.size(); i++)
+			{
+				if (forcedSubtitleTrack == fileInfo.SubtitleTracks[i].trackNum)
+					break;
+				if (fileInfo.SubtitleTracks[i].language == defaultSubtitleLang)
+					break;
+				if (i == int(fileInfo.SubtitleTracks.size()) - 1)
+				{
+					SetColor(14);
+					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper subtitle track! Defaulting to first track.\n";
+					SetColor(7);
+					i = 0;
+					break;
+				}
+			}
+		}
+		fileInfo.selecteSubtitleTrack = i;
+	}
+}
+
 videoFile getMKVInfo(const char* filepath, int jobNum)
 {
 	string cmdstr = mkvtoolnixDir + "mkvinfo.exe \"" + string(filepath) + "\"";
@@ -102,7 +292,7 @@ videoFile getMKVInfo(const char* filepath, int jobNum)
 
 	FILE* pipe = _popen(cmdstr.data(), "r");
 
-	try 
+	try
 	{
 		if (!pipe) throw runtime_error("popen() failed!");
 		while (!feof(pipe))
@@ -121,7 +311,7 @@ videoFile getMKVInfo(const char* filepath, int jobNum)
 	}
 	_pclose(pipe);
 
-//	cout << "Result: " << result << endl;
+	//	cout << "Result: " << result << endl;
 
 	int pos1, pos2, nextPos;
 
@@ -264,7 +454,7 @@ videoFile getMKVInfo(const char* filepath, int jobNum)
 	do {
 		trackInfo tempTrack;
 		pos2 = result.find("|  + File name: ", nextPos) + string("|  + File name: ").size();
-		
+
 		if (pos2 != string::npos)
 		{
 			tempTrack.filename = result.substr(pos2, result.find("\n", pos2) - pos2);
@@ -279,173 +469,204 @@ videoFile getMKVInfo(const char* filepath, int jobNum)
 			fileInfo.attachmentTracks.push_back(tempTrack);
 		}
 	} while (result.find("|  + File name: ", nextPos) != string::npos);
-	
-	vector<int> pos;
-	int found = -1;
 
-	fileInfo.outFileName = fileInfo.fileName;
-	fileInfo.subDir = fileInfo.outFileName;
+	cleanFilename(fileInfo);
+	selectTracks(fileInfo);
+	return fileInfo;
+}
 
-	if (bCleanFilename)
+videoFile getMP4Info(const char* filepath, int jobNum)
+{
+	string fileStr = filepath;
+	fileStr = fileStr.substr(fileStr.find_last_of("\\") + 1, fileStr.length() - fileStr.find_last_of("\\") - 5);
+	string cmdstr = MeGUIDir + "tools\\ffmpeg\\ffmpeg.exe -i \"" + string(filepath) + "\" -hide_banner";
+
+	char buffer[BUFSIZ];
+	videoFile fileInfo;
+	string result = "";
+
+	FILE* pipe = _popen(cmdstr.data(), "r");
+
+	try
 	{
-		pos.erase(pos.begin(), pos.end());
-
-		// If we have nothing but .s for a filename, lets get rid of them.
-		do {
-			found = fileInfo.fileName.find(".", found + 1);
-			if (found != string::npos)
-				pos.push_back(found);
-		} while (found != string::npos);
-
-		if (pos.size() > 3)
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("\\u002E"), " ");
-
-		// If we have nothing but _s for a filename, lets get rid of them.
-		do {
-			found = fileInfo.fileName.find("_", found + 1);
-			if (found != string::npos)
-				pos.push_back(found);
-		} while (found != string::npos);
-
-		if (pos.size() > 2)
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("_"), " ");
-
-		// Removing group is easy.
-		if (fileInfo.outFileName[0] == '[')
+		if (!pipe) throw runtime_error("popen() failed!");
+		while (!feof(pipe))
 		{
-			int endGroup = int(fileInfo.outFileName.find_first_of("]")) + 2;
-			fileInfo.outFileName = fileInfo.outFileName.substr(endGroup, int(fileInfo.outFileName.size()) - endGroup);
-		}
-
-		// But removing the rest?
-		if (!customEpisodeRegex.empty() && regex_match(fileInfo.outFileName, regex(customEpisodeRegex)))
-		{ // Custom RegEx
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*")))
-		{ // [Title] - [00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)\\b.*")))
-		{// [Title ][00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*")))
-		{ // [Title] - [00]v0
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)v\\d\\b.*")))
-		{// [Title ][00]v0
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)v\\d\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*")))
-		{// [Title] [S00E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (S\\d\\dE\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*")))
-		{// [Title] [S00.E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d\\u002E\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*"), "$1$2");
-		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*")))
-		{// [Title] [S00 E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d E\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*"), "$1$2");
-		}
-
-		// And what about that data at the end?
-		if (bAggressiveClean && fileInfo.outFileName.find("[") != string::npos)
-		{
-			do {
-				pos1 = fileInfo.outFileName.find("[");
-				pos2 = fileInfo.outFileName.find("]") + 1;
-				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
-				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
-			} while (fileInfo.outFileName.find("[") != string::npos);
-		}
-
-		// Now for optional (parenthesis)
-		if (bAggressiveClean && bCleanParenthesis && fileInfo.outFileName.find("(") != string::npos)
-		{
-			do {
-				pos1 = fileInfo.outFileName.find("(");
-				pos2 = fileInfo.outFileName.find(")") + 1;
-				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
-				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
-			} while (fileInfo.outFileName.find("(") != string::npos);
+			if (fgets(buffer, BUFSIZ, pipe) != NULL)
+				result += buffer;
 		}
 	}
-
-	// Clean up end spaces if any
-	while (!fileInfo.subDir.empty() && fileInfo.subDir[int(fileInfo.subDir.size()) - 1] == ' ')
-		fileInfo.subDir.pop_back();
-	while (!fileInfo.outFileName.empty() && fileInfo.outFileName[int(fileInfo.outFileName.size()) - 1] == ' ')
-		fileInfo.outFileName.pop_back();
-
-	if (fileInfo.audioTracks.size() == 1)
-		fileInfo.selectedAudioTrack = 0;
-	else if (!fileInfo.audioTracks.size())
-		fileInfo.selectedAudioTrack = -1;
-	else
+	catch (std::exception e)
 	{
-		int i = 0;
-		if (bRelativeTrack && forcedAudioTrack > 0 && fileInfo.audioTracks.size() <= forcedAudioTrack)
-			i = forcedAudioTrack - 1;
-		else {
-			for (; i < fileInfo.audioTracks.size(); i++)
+		SetColor(12);
+		cout << "mp4box ERROR: " << e.what() << endl;
+		SetColor(7);
+		_pclose(pipe);
+		throw;
+	}
+	_pclose(pipe);
+
+	cout << "Result: " << result << endl;
+
+	int pos1, pos2, nextPos;
+
+	if (result.find("Error") != string::npos || result.find("Segment: size 0") != string::npos)
+	{
+		SetColor(12);
+		cout << "ERROR: mp4box didn't return a good result!\n" << filepath << endl;
+		SetColor(7);
+
+		cout << result << endl;
+		return fileInfo;
+	}
+	else if (result.empty())
+	{
+		SetColor(12);
+		cout << "ERROR: mkvinfo didn't return a result!\n";
+		SetColor(7);
+		return fileInfo;
+	}
+
+	fileInfo.filePath = filepath;
+	fileInfo.fileName = fileInfo.filePath.substr(fileInfo.filePath.find_last_of("\\") + 1, fileInfo.filePath.length() - fileInfo.filePath.find_last_of("\\") - 5);
+
+	fileInfo.jobNum = jobNum;
+
+	SetColor(10);
+	cout << "[Job " << fileInfo.jobNum << "/" << maxJobs << "] MKV Info: " << fileInfo.fileName << endl;
+	SetColor(7);
+
+	// Find the tracks
+	nextPos = pos1 = result.find("|+ Tracks") + string("|+ Tracks").size();
+	do {
+		trackInfo tempTrack;
+		pos2 = result.find("|  + Track number: ", nextPos) + string("|  + Track number: ").size();
+		tempTrack.trackNum = stoi(result.substr(pos2, 1)) - 1;
+		nextPos = pos2;
+
+		if (result.find("|  + Language: jpn", nextPos) != string::npos)
+			tempTrack.language = "jpn";
+		else if (result.find("|  + Language: eng", nextPos) != string::npos)
+			tempTrack.language = "eng";
+		else
+			tempTrack.language = "";
+
+		if (result.find("|  + Track type: video", nextPos) < result.find("|  + Track number: ", nextPos))
+		{
+			int resx, resy;
+			fileInfo.videoTrack.extension = "264";
+			fileInfo.videoTrack.trackNum = tempTrack.trackNum;
+
+			pos1 = result.find("|  + Default duration:", nextPos);
+			pos2 = result.find("| + Track", nextPos);
+			if (pos1 != string::npos && pos1 < pos2)
 			{
-				if (forcedAudioTrack == fileInfo.audioTracks[i].trackNum)
-					break;
-				if (fileInfo.audioTracks[i].language == defaultAudioLang)
-					break;
-				if (i == int(fileInfo.audioTracks.size()) - 1)
+				string temp = result.substr(result.find("(", pos1) + 1, result.find(" frames", pos1) - result.find("(", pos1) - 1);
+				try {
+					if (stof(tempTrack.framerate) <= 23.f)
+						tempTrack.framerate = "";
+				}
+				catch (...)
 				{
 					SetColor(14);
-					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper audio track! Defaulting to first track.\n";
-					SetColor(7);
-					i = 0;
-					break;
+					cout << "[" << tempTrack.filename << "] Warning: Could not determine video framerate. Defaulting to 23.976.\n";
+					SetColor(2);
 				}
 			}
-		}
-		fileInfo.selectedAudioTrack = i;
-	}
 
-	if (fileInfo.SubtitleTracks.size() == 1)
-		fileInfo.selecteSubtitleTrack = 0;
-	else if (!fileInfo.SubtitleTracks.size())
-		fileInfo.selecteSubtitleTrack = -1;
-	else
-	{
-		int i = 0;
-		if (bRelativeTrack && forcedSubtitleTrack > 0 && fileInfo.audioTracks.size() <= forcedSubtitleTrack)
-			i = forcedSubtitleTrack - 1;
-		else {
-			for (; i < fileInfo.SubtitleTracks.size(); i++)
+			pos1 = result.find("|   + Pixel width: ", nextPos);
+			if (pos1 != string::npos && pos1 < pos2)
 			{
-				if (forcedSubtitleTrack == fileInfo.SubtitleTracks[i].trackNum)
-					break;
-				if (fileInfo.SubtitleTracks[i].language == defaultSubtitleLang)
-					break;
-				if (i == int(fileInfo.SubtitleTracks.size()) - 1)
+				string temp = result.substr(result.find(": ", pos1) + 2, result.find("\n", pos1) - result.find(": ", pos1) - 2);
+				try {
+					resx = stoi(temp);
+				}
+				catch (...)
 				{
 					SetColor(14);
-					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper subtitle track! Defaulting to first track.\n";
+					cout << "Warning: Could not determine video width. Defaulting to 16:9\n";
 					SetColor(7);
-					i = 0;
-					break;
 				}
 			}
-		}
-		fileInfo.selecteSubtitleTrack = i;
-	}
 
+			pos1 = result.find("|   + Pixel height: ", nextPos);
+			if (pos1 != string::npos && pos1 < pos2)
+			{
+				string temp = result.substr(result.find(": ", pos1) + 2, result.find("\n", pos1) - result.find(": ", pos1) - 2);
+				try {
+					resy = stoi(temp);
+				}
+				catch (...)
+				{
+					SetColor(14);
+					cout << "[" << tempTrack.filename << "] Warning: Could not determine video height. Defaulting to 16:9\n";
+					SetColor(7);
+				}
+			}
+
+			if (resx && resy)
+			{
+				int cd = boost::integer::gcd(resx, resy);
+				tempTrack.AR = to_string(float(resx) / float(resy));
+				tempTrack.ARx = to_string(min(cd, (resx / cd)));
+				tempTrack.ARy = to_string(min(cd, (resy / cd)));
+			}
+		}
+		else if (result.find("|  + Track type: audio", nextPos) < result.find("|  + Track number: ", nextPos))
+		{
+			if (result.find("|  + Codec ID: A_AAC", nextPos) != string::npos)
+				tempTrack.extension = "m4a";
+			else if (result.find("|  + Codec ID: FLAC", nextPos) != string::npos || result.find("|  + Codec ID: A_FLAC", nextPos) != string::npos)
+			{
+				tempTrack.extension = "flac";
+				tempTrack.bReencode = true;
+			}
+			else if (result.find("|  + Codec ID: A_AC3", nextPos) != string::npos)
+				tempTrack.extension = "ac3";
+			else{
+				tempTrack.extension = "m4a";
+				tempTrack.bReencode = true;
+			}
+
+			fileInfo.audioTracks.push_back(tempTrack);
+		}
+		else if (result.find("|  + Track type: subtitles", nextPos) < result.find("|  + Track number: ", nextPos))
+		{
+			if (result.find("|  + Codec ID: S_TEXT/ASS", nextPos) != string::npos)
+				tempTrack.extension = "ass";
+			else if (result.find("|  + Codec ID: S_TEXT/SRT", nextPos) != string::npos)
+				tempTrack.extension = "srt";
+			else if (result.find("|  + Codec ID: S_HDMV/PGS", nextPos) != string::npos)
+				tempTrack.extension = "sup";
+			else
+				tempTrack.extension = "ass";
+			fileInfo.SubtitleTracks.push_back(tempTrack);
+		}
+	} while (result.find("|  + Track number: ", nextPos) != string::npos);
+
+	// Find Attachments
+	nextPos = pos1 = result.find("|+ Attachments") + string("|+ Attachments").size();
+	do {
+		trackInfo tempTrack;
+		pos2 = result.find("|  + File name: ", nextPos) + string("|  + File name: ").size();
+
+		if (pos2 != string::npos)
+		{
+			tempTrack.filename = result.substr(pos2, result.find("\n", pos2) - pos2);
+			tempTrack.trackNum = fileInfo.attachmentTracks.size() + 1;
+			nextPos = pos2;
+
+			tempTrack.bIsFont = result.find("opentype", nextPos) != string::npos || result.find("truetype", nextPos) != string::npos /*|| result.find("dosexec", nextPos) != string::npos*/;
+
+			if (bInstallFonts)
+				attchmentList[tempTrack.filename] = tempTrack.bIsFont;
+
+			fileInfo.attachmentTracks.push_back(tempTrack);
+		}
+	} while (result.find("|  + File name: ", nextPos) != string::npos);
+
+	cleanFilename(fileInfo);
+	selectTracks(fileInfo);
 	return fileInfo;
 }
 
@@ -908,7 +1129,7 @@ int main(int argc, char *argv[])
 	for (size_t i = 0; i < argc; ++i)
 	{
 		tempArg = argv[i];
-		if (tempArg.length() > 4 && tempArg.substr(tempArg.length() - 4, 4) == ".mkv")
+		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == ".mkv" || tempArg.substr(tempArg.length() - 4, 4) == ".mp4"))
 			continue;
 		args.push_back(tempArg);
 	}
@@ -937,7 +1158,7 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; ++i)
 	{
 		tempArg = argv[i];
-		if (tempArg.length() > 4 && tempArg.substr(tempArg.length() - 4, 4) == ".mkv")
+		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == ".mkv" || tempArg.substr(tempArg.length() - 4, 4) == ".mp4"))
 		{
 			vidPaths.push_back(tempArg);
 			maxJobs++;
@@ -946,7 +1167,12 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < vidPaths.size(); i++)
 	{
-		tempVideo = getMKVInfo(vidPaths[i].data(), i+1);
+		if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mkv")
+			tempVideo = getMKVInfo(vidPaths[i].data(), i+1);
+		else if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mp4")
+			tempVideo = getMP4Info(vidPaths[i].data(), i + 1);
+
+		
 		if (tempVideo.fileName == "")
 			continue;
 		else if (tempVideo.audioTracks.empty())
