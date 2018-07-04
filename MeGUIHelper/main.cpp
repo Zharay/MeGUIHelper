@@ -20,12 +20,14 @@ using namespace MediaInfoNameSpace;
 #include <process.h>
 #include <direct.h>
 #include <vector>
-#include <string>
+#include <String>
 #include <iterator>
 #include <direct.h>
 #include <regex>
 #include <Windows.h>
 #include <map>
+#include <locale>
+#include <codecvt>
 
 #include <boost/integer/common_factor_rt.hpp>
 #include <boost/format.hpp>
@@ -37,13 +39,13 @@ namespace po = boost::program_options;
 using namespace std;
 using namespace boost;
 
-string mkvtoolnixDir = "";
-string MeGUIDir = "";
-string WorkDir = "";
-string OutputDir = "";
-string defaultAudioLang = "jpn";
-string defaultSubtitleLang = "eng";
-string customEpisodeRegex = "";
+String mkvtoolnixDir = __T("");
+String MeGUIDir = __T("");
+String WorkDir = __T("");
+String OutputDir = __T("");
+String defaultAudioLang = __T("jpn");
+String defaultSubtitleLang = __T("eng");
+String customEpisodeRegex = __T("");
 int forcedAudioTrack = -1;
 int forcedSubtitleTrack = -1;
 bool bCleanFilename;
@@ -57,35 +59,35 @@ bool bCleanParenthesis;
 bool bClearMeGUIJobs;
 bool bExtract264;
 
-const string AVSTemplate = "LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\lsmash\\LSMASHSource.dll\")\nLWLibavVideoSource(\"%1%\")\n";
-const string AVSTemplate_264 = "LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\ffms\\ffms2.dll\")\nFFVideoSource(\"%2%%1%.264\")\n";
-const string AVSTemplate_Subs = "\nLoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\avisynth_plugin\\VSFilter.dll\")\nTextSub(\"%2%%1%.%3%\", 1)";
-const string AVSTemplate_Sups = "\nLoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\avisynth_plugin\\SupTitle.dll\")\nTextSub(\"%2%%1%.%3%\")";
-const string videoJobTemplate = "<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"VideoJob\">\n\t<Input>%2%%1%.avs</Input>\n\t<Output>%3%%1%-1.264</Output>\n\t<FilesToDelete />\n\t<Zones />\n\t<DAR>\n\t\t<AR>%4%</AR>\n\t\t<X>%5%</X>\n\t\t<Y>%6%</Y>\n\t</DAR>\n\t<Settings xsi:type=\"x264Settings\">\n\t\t<VideoEncodingType>quality</VideoEncodingType>\n\t\t<BitrateQuantizer>20</BitrateQuantizer>\n\t\t<KeyframeInterval>250</KeyframeInterval>\n\t\t<NbBframes>3</NbBframes>\n\t\t<MinQuantizer>0</MinQuantizer>\n\t\t<MaxQuantizer>81</MaxQuantizer>\n\t\t<V4MV>false</V4MV>\n\t\t<QPel>false</QPel>\n\t\t<Trellis>false</Trellis>\n\t\t<CreditsQuantizer>40</CreditsQuantizer>\n\t\t<Logfile>%3%%1%.stats</Logfile>\n\t\t<VideoName />\n\t\t<CustomEncoderOptions />\n\t\t<MaxNumberOfPasses>3</MaxNumberOfPasses>\n\t\t<NbThreads>0</NbThreads>\n\t\t<x264PresetLevel>medium</x264PresetLevel>\n\t\t<x264PsyTuning>NONE</x264PsyTuning>\n\t\t<QuantizerCRF>20.0</QuantizerCRF>\n\t\t<InterlacedMode>progressive</InterlacedMode>\n\t\t<TargetDeviceXML>12</TargetDeviceXML>\n\t\t<BlurayCompatXML>False</BlurayCompatXML>\n\t\t<NoDCTDecimate>false</NoDCTDecimate>\n\t\t<PSNRCalculation>false</PSNRCalculation>\n\t\t<NoFastPSkip>false</NoFastPSkip>\n\t\t<NoiseReduction>0</NoiseReduction>\n\t\t<NoMixedRefs>false</NoMixedRefs>\n\t\t<X264Trellis>1</X264Trellis>\n\t\t<NbRefFrames>3</NbRefFrames>\n\t\t<AlphaDeblock>0</AlphaDeblock>\n\t\t<BetaDeblock>0</BetaDeblock>\n\t\t<SubPelRefinement>7</SubPelRefinement>\n\t\t<MaxQuantDelta>4</MaxQuantDelta>\n\t\t<TempQuantBlur>0</TempQuantBlur>\n\t\t<BframePredictionMode>1</BframePredictionMode>\n\t\t<VBVBufferSize>31250</VBVBufferSize>\n\t\t<VBVMaxBitrate>31250</VBVMaxBitrate>\n\t\t<METype>1</METype>\n\t\t<MERange>16</MERange>\n\t\t<MinGOPSize>25</MinGOPSize>\n\t\t<IPFactor>1.4</IPFactor>\n\t\t<PBFactor>1.3</PBFactor>\n\t\t<ChromaQPOffset>0</ChromaQPOffset>\n\t\t<VBVInitialBuffer>0.9</VBVInitialBuffer>\n\t\t<BitrateVariance>1.0</BitrateVariance>\n\t\t<QuantCompression>0.6</QuantCompression>\n\t\t<TempComplexityBlur>20</TempComplexityBlur>\n\t\t<TempQuanBlurCC>0.5</TempQuanBlurCC>\n\t\t<SCDSensitivity>40</SCDSensitivity>\n\t\t<BframeBias>0</BframeBias>\n\t\t<PsyRDO>1.0</PsyRDO>\n\t\t<PsyTrellis>0</PsyTrellis>\n\t\t<Deblock>true</Deblock>\n\t\t<Cabac>true</Cabac>\n\t\t<UseQPFile>false</UseQPFile>\n\t\t<WeightedBPrediction>true</WeightedBPrediction>\n\t\t<WeightedPPrediction>2</WeightedPPrediction>\n\t\t<NewAdaptiveBFrames>1</NewAdaptiveBFrames>\n\t\t<x264BFramePyramid>2</x264BFramePyramid>\n\t\t<x264GOPCalculation>1</x264GOPCalculation>\n\t\t<ChromaME>true</ChromaME>\n\t\t<MacroBlockOptions>3</MacroBlockOptions>\n\t\t<P8x8mv>true</P8x8mv>\n\t\t<B8x8mv>true</B8x8mv>\n\t\t<I4x4mv>true</I4x4mv>\n\t\t<I8x8mv>true</I8x8mv>\n\t\t<P4x4mv>false</P4x4mv>\n\t\t<AdaptiveDCT>true</AdaptiveDCT>\n\t\t<SSIMCalculation>false</SSIMCalculation>\n\t\t<StitchAble>false</StitchAble>\n\t\t<QuantizerMatrix>Flat (none)</QuantizerMatrix>\n\t\t<QuantizerMatrixType>0</QuantizerMatrixType>\n\t\t<DeadZoneInter>21</DeadZoneInter>\n\t\t<DeadZoneIntra>11</DeadZoneIntra>\n\t\t<X26410Bits>false</X26410Bits>\n\t\t<OpenGop>False</OpenGop>\n\t\t<X264PullDown>0</X264PullDown>\n\t\t<SampleAR>0</SampleAR>\n\t\t<ColorMatrix>0</ColorMatrix>\n\t\t<ColorPrim>0</ColorPrim>\n\t\t<Transfer>0</Transfer>\n\t\t<AQmode>1</AQmode>\n\t\t<AQstrength>1.0</AQstrength>\n\t\t<QPFile />\n\t\t<Range>auto</Range>\n\t\t<x264AdvancedSettings>true</x264AdvancedSettings>\n\t\t<Lookahead>40</Lookahead>\n\t\t<NoMBTree>true</NoMBTree>\n\t\t<ThreadInput>true</ThreadInput>\n\t\t<NoPsy>false</NoPsy>\n\t\t<Scenecut>true</Scenecut>\n\t\t<Nalhrd>0</Nalhrd>\n\t\t<X264Aud>false</X264Aud>\n\t\t<X264SlowFirstpass>false</X264SlowFirstpass>\n\t\t<PicStruct>false</PicStruct>\n\t\t<FakeInterlaced>false</FakeInterlaced>\n\t\t<NonDeterministic>false</NonDeterministic>\n\t\t<SlicesNb>0</SlicesNb>\n\t\t<MaxSliceSyzeBytes>0</MaxSliceSyzeBytes>\n\t\t<MaxSliceSyzeMBs>0</MaxSliceSyzeMBs>\n\t\t<Profile>2</Profile>\n\t\t<AVCLevel>L_41</AVCLevel>\n\t\t<TuneFastDecode>false</TuneFastDecode>\n\t\t<TuneZeroLatency>false</TuneZeroLatency>\n\t</Settings>\n\t</Job>\n\t<RequiredJobNames />\n\t<EnabledJobNames>\n\t<string>job%8% - %1% - MKV</string>\n\t</EnabledJobNames>\n\t<Name>job%7% - %1% - 264</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>";
-const string audioJobTemplate = "<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"AudioJob\">\n\t<Input>%2%%1%.%3%</Input>\n\t<Output>%2%%1%.ac3</Output>\n\t<FilesToDelete />\n\t\t<CutFile />\n\t\t<Settings xsi:type=\"AC3Settings\">\n\t\t\t<PreferredDecoderString>LWLibavAudioSource</PreferredDecoderString>\n\t\t\t<DownmixMode>KeepOriginal</DownmixMode>\n\t\t\t<BitrateMode>CBR</BitrateMode>\n\t\t\t<Bitrate>384</Bitrate>\n\t\t\t<AutoGain>false</AutoGain>\n\t\t\t<SampleRateType>deprecated</SampleRateType>\n\t\t\t<SampleRate>KeepOriginal</SampleRate>\n\t\t\t<TimeModification>KeepOriginal</TimeModification>\n\t\t\t<ApplyDRC>false</ApplyDRC>\n\t\t\t<Normalize>100</Normalize>\n\t\t\t<CustomEncoderOptions />\n\t\t</Settings>\n\t\t<Delay>0</Delay>\n\t\t<SizeBytes>0</SizeBytes>\n\t\t<BitrateMode>CBR</BitrateMode>\n\t</Job>\n\t<RequiredJobNames />\n\t<EnabledJobNames />\n\t<Name>job%4% - %1% - AC3</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>";
-const string muxJobTemplate =	"<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"MuxJob\">\n\t<Input>%3%%1%-1.264</Input>\n\t<Output>%4%%1%.mkv</Output>\n\t<FilesToDelete>\n\t<string>%9%.lwi</string>\n\t<string>%3%%1%-1.264</string>\n\t<string>%2%%1%.avs</string>\n\t<string>%3%%1%.%5%</string>\n\t<string>%2%%1%.ass</string>\n\t</FilesToDelete>\n\t<ContainerTypeString>mkv</ContainerTypeString>\n\t<Codec />\n\t<NbOfBFrames>0</NbOfBFrames>\n\t<NbOfFrames>0</NbOfFrames>\n\t<Bitrate>0</Bitrate>\n\t<Overhead>4.3</Overhead>\n\t<Settings>\n\t<MuxedInput />\n\t<MuxedOutput>%4%%1%.mkv</MuxedOutput>\n\t<VideoInput>%3%%1%-1.264</VideoInput>\n\t<AudioStreams>\n\t\t<MuxStream>\n\t\t<path>%3%%1%.%5%</path>\n\t\t<delay>0</delay>\n\t\t<bDefaultTrack>false</bDefaultTrack>\n\t\t<bForceTrack>false</bForceTrack>\n\t\t<language>Japanese</language>\n\t\t<name />\n\t\t</MuxStream>\n\t</AudioStreams>\n\t<SubtitleStreams />\n\t<Framerate%6%\n\t<ChapterInfo>\n\t\t<Title />\n\t\t<SourceFilePath />\n\t\t<SourceType />\n\t\t<FramesPerSecond>0</FramesPerSecond>\n\t\t<TitleNumber>0</TitleNumber>\n\t\t<PGCNumber>0</PGCNumber>\n\t\t<AngleNumber>0</AngleNumber>\n\t\t<Chapters />\n\t\t<DurationTicks>0</DurationTicks>\n\t</ChapterInfo>\n\t<Attachments />\n\t<SplitSize xsi:nil=\"true\" />\n\t<DAR xsi:nil=\"true\" />\n\t<DeviceType>Standard</DeviceType>\n\t<VideoName>%1%</VideoName>\n\t<MuxAll>false</MuxAll>\n\t</Settings>\n\t<MuxType>MKVMERGE</MuxType>\n\t</Job>\n\t<RequiredJobNames>\n\t<string>job%8% - %1% - 264</string>\n\t</RequiredJobNames>\n\t<EnabledJobNames />\n\t<Name>job%7% - %1% - MKV</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>";
-const string muxJobTemplate_264 =	"<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"MuxJob\">\n\t<Input>%3%%1%-1.264</Input>\n\t<Output>%4%%1%.mkv</Output>\n\t<FilesToDelete>\n\t<string>%2%%1%.264</string>\n\t<string>%2%%1%.264.ffindex</string>\n\t<string>%3%%1%-1.264</string>\n\t<string>%2%%1%.avs</string>\n\t<string>%3%%1%.%5%</string>\n\t<string>%2%%1%.ass</string>\n\t</FilesToDelete>\n\t<ContainerTypeString>mkv</ContainerTypeString>\n\t<Codec />\n\t<NbOfBFrames>0</NbOfBFrames>\n\t<NbOfFrames>0</NbOfFrames>\n\t<Bitrate>0</Bitrate>\n\t<Overhead>4.3</Overhead>\n\t<Settings>\n\t<MuxedInput />\n\t<MuxedOutput>%4%%1%.mkv</MuxedOutput>\n\t<VideoInput>%3%%1%-1.264</VideoInput>\n\t<AudioStreams>\n\t\t<MuxStream>\n\t\t<path>%3%%1%.%5%</path>\n\t\t<delay>0</delay>\n\t\t<bDefaultTrack>false</bDefaultTrack>\n\t\t<bForceTrack>false</bForceTrack>\n\t\t<language>Japanese</language>\n\t\t<name />\n\t\t</MuxStream>\n\t</AudioStreams>\n\t<SubtitleStreams />\n\t<Framerate%6%\n\t<ChapterInfo>\n\t\t<Title />\n\t\t<SourceFilePath />\n\t\t<SourceType />\n\t\t<FramesPerSecond>0</FramesPerSecond>\n\t\t<TitleNumber>0</TitleNumber>\n\t\t<PGCNumber>0</PGCNumber>\n\t\t<AngleNumber>0</AngleNumber>\n\t\t<Chapters />\n\t\t<DurationTicks>0</DurationTicks>\n\t</ChapterInfo>\n\t<Attachments />\n\t<SplitSize xsi:nil=\"true\" />\n\t<DAR xsi:nil=\"true\" />\n\t<DeviceType>Standard</DeviceType>\n\t<VideoName>%1%</VideoName>\n\t<MuxAll>false</MuxAll>\n\t</Settings>\n\t<MuxType>MKVMERGE</MuxType>\n\t</Job>\n\t<RequiredJobNames>\n\t<string>job%8% - %1% - 264</string>\n\t</RequiredJobNames>\n\t<EnabledJobNames />\n\t<Name>job%7% - %1% - MKV</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>";
-const string jobListTemplate = "<?xml version=\"1.0\"?>\n<JobListSerializer xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<mainJobList>%1%</mainJobList>\n\t<workersAndTheirJobLists>\n\t\t<PairOfStringListOfString>\n\t\t\t<fst>Worker 1</fst>\n\t\t\t<snd />\n\t\t</PairOfStringListOfString>\n\t</workersAndTheirJobLists>\n</JobListSerializer>";
+const String AVSTemplate = __T("LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\lsmash\\LSMASHSource.dll\")\nLWLibavVideoSource(\"%1%\")\n");
+const String AVSTemplate_264 = __T("LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\ffms\\ffms2.dll\")\nFFVideoSource(\"%2%%1%.264\")\n");
+const String AVSTemplate_Subs = __T("\nLoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\avisynth_plugin\\VSFilter.dll\")\nTextSub(\"%2%%1%.%3%\", 1)");
+const String AVSTemplate_Sups = __T("\nLoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\avisynth_plugin\\SupTitle.dll\")\nTextSub(\"%2%%1%.%3%\")");
+const String videoJobTemplate = __T("<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"VideoJob\">\n\t<Input>%2%%1%.avs</Input>\n\t<Output>%3%%1%-1.264</Output>\n\t<FilesToDelete />\n\t<Zones />\n\t<DAR>\n\t\t<AR>%4%</AR>\n\t\t<X>%5%</X>\n\t\t<Y>%6%</Y>\n\t</DAR>\n\t<Settings xsi:type=\"x264Settings\">\n\t\t<VideoEncodingType>quality</VideoEncodingType>\n\t\t<BitrateQuantizer>20</BitrateQuantizer>\n\t\t<KeyframeInterval>250</KeyframeInterval>\n\t\t<NbBframes>3</NbBframes>\n\t\t<MinQuantizer>0</MinQuantizer>\n\t\t<MaxQuantizer>81</MaxQuantizer>\n\t\t<V4MV>false</V4MV>\n\t\t<QPel>false</QPel>\n\t\t<Trellis>false</Trellis>\n\t\t<CreditsQuantizer>40</CreditsQuantizer>\n\t\t<Logfile>%3%%1%.stats</Logfile>\n\t\t<VideoName />\n\t\t<CustomEncoderOptions />\n\t\t<MaxNumberOfPasses>3</MaxNumberOfPasses>\n\t\t<NbThreads>0</NbThreads>\n\t\t<x264PresetLevel>medium</x264PresetLevel>\n\t\t<x264PsyTuning>NONE</x264PsyTuning>\n\t\t<QuantizerCRF>20.0</QuantizerCRF>\n\t\t<InterlacedMode>progressive</InterlacedMode>\n\t\t<TargetDeviceXML>12</TargetDeviceXML>\n\t\t<BlurayCompatXML>False</BlurayCompatXML>\n\t\t<NoDCTDecimate>false</NoDCTDecimate>\n\t\t<PSNRCalculation>false</PSNRCalculation>\n\t\t<NoFastPSkip>false</NoFastPSkip>\n\t\t<NoiseReduction>0</NoiseReduction>\n\t\t<NoMixedRefs>false</NoMixedRefs>\n\t\t<X264Trellis>1</X264Trellis>\n\t\t<NbRefFrames>3</NbRefFrames>\n\t\t<AlphaDeblock>0</AlphaDeblock>\n\t\t<BetaDeblock>0</BetaDeblock>\n\t\t<SubPelRefinement>7</SubPelRefinement>\n\t\t<MaxQuantDelta>4</MaxQuantDelta>\n\t\t<TempQuantBlur>0</TempQuantBlur>\n\t\t<BframePredictionMode>1</BframePredictionMode>\n\t\t<VBVBufferSize>31250</VBVBufferSize>\n\t\t<VBVMaxBitrate>31250</VBVMaxBitrate>\n\t\t<METype>1</METype>\n\t\t<MERange>16</MERange>\n\t\t<MinGOPSize>25</MinGOPSize>\n\t\t<IPFactor>1.4</IPFactor>\n\t\t<PBFactor>1.3</PBFactor>\n\t\t<ChromaQPOffset>0</ChromaQPOffset>\n\t\t<VBVInitialBuffer>0.9</VBVInitialBuffer>\n\t\t<BitrateVariance>1.0</BitrateVariance>\n\t\t<QuantCompression>0.6</QuantCompression>\n\t\t<TempComplexityBlur>20</TempComplexityBlur>\n\t\t<TempQuanBlurCC>0.5</TempQuanBlurCC>\n\t\t<SCDSensitivity>40</SCDSensitivity>\n\t\t<BframeBias>0</BframeBias>\n\t\t<PsyRDO>1.0</PsyRDO>\n\t\t<PsyTrellis>0</PsyTrellis>\n\t\t<Deblock>true</Deblock>\n\t\t<Cabac>true</Cabac>\n\t\t<UseQPFile>false</UseQPFile>\n\t\t<WeightedBPrediction>true</WeightedBPrediction>\n\t\t<WeightedPPrediction>2</WeightedPPrediction>\n\t\t<NewAdaptiveBFrames>1</NewAdaptiveBFrames>\n\t\t<x264BFramePyramid>2</x264BFramePyramid>\n\t\t<x264GOPCalculation>1</x264GOPCalculation>\n\t\t<ChromaME>true</ChromaME>\n\t\t<MacroBlockOptions>3</MacroBlockOptions>\n\t\t<P8x8mv>true</P8x8mv>\n\t\t<B8x8mv>true</B8x8mv>\n\t\t<I4x4mv>true</I4x4mv>\n\t\t<I8x8mv>true</I8x8mv>\n\t\t<P4x4mv>false</P4x4mv>\n\t\t<AdaptiveDCT>true</AdaptiveDCT>\n\t\t<SSIMCalculation>false</SSIMCalculation>\n\t\t<StitchAble>false</StitchAble>\n\t\t<QuantizerMatrix>Flat (none)</QuantizerMatrix>\n\t\t<QuantizerMatrixType>0</QuantizerMatrixType>\n\t\t<DeadZoneInter>21</DeadZoneInter>\n\t\t<DeadZoneIntra>11</DeadZoneIntra>\n\t\t<X26410Bits>false</X26410Bits>\n\t\t<OpenGop>False</OpenGop>\n\t\t<X264PullDown>0</X264PullDown>\n\t\t<SampleAR>0</SampleAR>\n\t\t<ColorMatrix>0</ColorMatrix>\n\t\t<ColorPrim>0</ColorPrim>\n\t\t<Transfer>0</Transfer>\n\t\t<AQmode>1</AQmode>\n\t\t<AQstrength>1.0</AQstrength>\n\t\t<QPFile />\n\t\t<Range>auto</Range>\n\t\t<x264AdvancedSettings>true</x264AdvancedSettings>\n\t\t<Lookahead>40</Lookahead>\n\t\t<NoMBTree>true</NoMBTree>\n\t\t<ThreadInput>true</ThreadInput>\n\t\t<NoPsy>false</NoPsy>\n\t\t<Scenecut>true</Scenecut>\n\t\t<Nalhrd>0</Nalhrd>\n\t\t<X264Aud>false</X264Aud>\n\t\t<X264SlowFirstpass>false</X264SlowFirstpass>\n\t\t<PicStruct>false</PicStruct>\n\t\t<FakeInterlaced>false</FakeInterlaced>\n\t\t<NonDeterministic>false</NonDeterministic>\n\t\t<SlicesNb>0</SlicesNb>\n\t\t<MaxSliceSyzeBytes>0</MaxSliceSyzeBytes>\n\t\t<MaxSliceSyzeMBs>0</MaxSliceSyzeMBs>\n\t\t<Profile>2</Profile>\n\t\t<AVCLevel>L_41</AVCLevel>\n\t\t<TuneFastDecode>false</TuneFastDecode>\n\t\t<TuneZeroLatency>false</TuneZeroLatency>\n\t</Settings>\n\t</Job>\n\t<RequiredJobNames />\n\t<EnabledJobNames>\n\t<String>job%8% - %1% - MKV</String>\n\t</EnabledJobNames>\n\t<Name>job%7% - %1% - 264</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>");
+const String audioJobTemplate = __T("<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"AudioJob\">\n\t<Input>%2%%1%.%3%</Input>\n\t<Output>%2%%1%.ac3</Output>\n\t<FilesToDelete />\n\t\t<CutFile />\n\t\t<Settings xsi:type=\"AC3Settings\">\n\t\t\t<PreferredDecoderString>LWLibavAudioSource</PreferredDecoderString>\n\t\t\t<DownmixMode>KeepOriginal</DownmixMode>\n\t\t\t<BitrateMode>CBR</BitrateMode>\n\t\t\t<Bitrate>384</Bitrate>\n\t\t\t<AutoGain>false</AutoGain>\n\t\t\t<SampleRateType>deprecated</SampleRateType>\n\t\t\t<SampleRate>KeepOriginal</SampleRate>\n\t\t\t<TimeModification>KeepOriginal</TimeModification>\n\t\t\t<ApplyDRC>false</ApplyDRC>\n\t\t\t<Normalize>100</Normalize>\n\t\t\t<CustomEncoderOptions />\n\t\t</Settings>\n\t\t<Delay>0</Delay>\n\t\t<SizeBytes>0</SizeBytes>\n\t\t<BitrateMode>CBR</BitrateMode>\n\t</Job>\n\t<RequiredJobNames />\n\t<EnabledJobNames />\n\t<Name>job%4% - %1% - AC3</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>");
+const String muxJobTemplate =	__T("<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"MuxJob\">\n\t<Input>%3%%1%-1.264</Input>\n\t<Output>%4%%1%.mkv</Output>\n\t<FilesToDelete>\n\t<String>%9%.lwi</String>\n\t<String>%3%%1%-1.264</String>\n\t<String>%2%%1%.avs</String>\n\t<String>%3%%1%.%5%</String>\n\t<String>%2%%1%.ass</String>\n\t</FilesToDelete>\n\t<ContainerTypeString>mkv</ContainerTypeString>\n\t<Codec />\n\t<NbOfBFrames>0</NbOfBFrames>\n\t<NbOfFrames>0</NbOfFrames>\n\t<Bitrate>0</Bitrate>\n\t<Overhead>4.3</Overhead>\n\t<Settings>\n\t<MuxedInput />\n\t<MuxedOutput>%4%%1%.mkv</MuxedOutput>\n\t<VideoInput>%3%%1%-1.264</VideoInput>\n\t<AudioStreams>\n\t\t<MuxStream>\n\t\t<path>%3%%1%.%5%</path>\n\t\t<delay>0</delay>\n\t\t<bDefaultTrack>false</bDefaultTrack>\n\t\t<bForceTrack>false</bForceTrack>\n\t\t<language>Japanese</language>\n\t\t<name />\n\t\t</MuxStream>\n\t</AudioStreams>\n\t<SubtitleStreams />\n\t<Framerate%6%\n\t<ChapterInfo>\n\t\t<Title />\n\t\t<SourceFilePath />\n\t\t<SourceType />\n\t\t<FramesPerSecond>0</FramesPerSecond>\n\t\t<TitleNumber>0</TitleNumber>\n\t\t<PGCNumber>0</PGCNumber>\n\t\t<AngleNumber>0</AngleNumber>\n\t\t<Chapters />\n\t\t<DurationTicks>0</DurationTicks>\n\t</ChapterInfo>\n\t<Attachments />\n\t<SplitSize xsi:nil=\"true\" />\n\t<DAR xsi:nil=\"true\" />\n\t<DeviceType>Standard</DeviceType>\n\t<VideoName>%1%</VideoName>\n\t<MuxAll>false</MuxAll>\n\t</Settings>\n\t<MuxType>MKVMERGE</MuxType>\n\t</Job>\n\t<RequiredJobNames>\n\t<String>job%8% - %1% - 264</String>\n\t</RequiredJobNames>\n\t<EnabledJobNames />\n\t<Name>job%7% - %1% - MKV</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>");
+const String muxJobTemplate_264 =	__T("<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<TaggedJob xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<EncodingSpeed />\n\t<Job xsi:type=\"MuxJob\">\n\t<Input>%3%%1%-1.264</Input>\n\t<Output>%4%%1%.mkv</Output>\n\t<FilesToDelete>\n\t<String>%2%%1%.264</String>\n\t<String>%2%%1%.264.ffindex</String>\n\t<String>%3%%1%-1.264</String>\n\t<String>%2%%1%.avs</String>\n\t<String>%3%%1%.%5%</String>\n\t<String>%2%%1%.ass</String>\n\t</FilesToDelete>\n\t<ContainerTypeString>mkv</ContainerTypeString>\n\t<Codec />\n\t<NbOfBFrames>0</NbOfBFrames>\n\t<NbOfFrames>0</NbOfFrames>\n\t<Bitrate>0</Bitrate>\n\t<Overhead>4.3</Overhead>\n\t<Settings>\n\t<MuxedInput />\n\t<MuxedOutput>%4%%1%.mkv</MuxedOutput>\n\t<VideoInput>%3%%1%-1.264</VideoInput>\n\t<AudioStreams>\n\t\t<MuxStream>\n\t\t<path>%3%%1%.%5%</path>\n\t\t<delay>0</delay>\n\t\t<bDefaultTrack>false</bDefaultTrack>\n\t\t<bForceTrack>false</bForceTrack>\n\t\t<language>Japanese</language>\n\t\t<name />\n\t\t</MuxStream>\n\t</AudioStreams>\n\t<SubtitleStreams />\n\t<Framerate%6%\n\t<ChapterInfo>\n\t\t<Title />\n\t\t<SourceFilePath />\n\t\t<SourceType />\n\t\t<FramesPerSecond>0</FramesPerSecond>\n\t\t<TitleNumber>0</TitleNumber>\n\t\t<PGCNumber>0</PGCNumber>\n\t\t<AngleNumber>0</AngleNumber>\n\t\t<Chapters />\n\t\t<DurationTicks>0</DurationTicks>\n\t</ChapterInfo>\n\t<Attachments />\n\t<SplitSize xsi:nil=\"true\" />\n\t<DAR xsi:nil=\"true\" />\n\t<DeviceType>Standard</DeviceType>\n\t<VideoName>%1%</VideoName>\n\t<MuxAll>false</MuxAll>\n\t</Settings>\n\t<MuxType>MKVMERGE</MuxType>\n\t</Job>\n\t<RequiredJobNames>\n\t<String>job%8% - %1% - 264</String>\n\t</RequiredJobNames>\n\t<EnabledJobNames />\n\t<Name>job%7% - %1% - MKV</Name>\n\t<Status>WAITING</Status>\n\t<Start>0001-01-01T00:00:00</Start>\n\t<End>0001-01-01T00:00:00</End>\n</TaggedJob>");
+const String jobListTemplate = __T("<?xml version=\"1.0\"?>\n<JobListSerializer xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">\n\t<mainJobList>%1%</mainJobList>\n\t<workersAndTheirJobLists>\n\t\t<PairOfStringListOfString>\n\t\t\t<fst>Worker 1</fst>\n\t\t\t<snd />\n\t\t</PairOfStringListOfString>\n\t</workersAndTheirJobLists>\n</JobListSerializer>");
 
 struct trackInfo {
-	string filename = "";
-	string extension = "";
-	string language = "";
-	string framerate = "23.976";
-	string AR = "1.7777777777777777777777777778";
-	string ARx = "16";
-	string ARy = "9";
+	String filename = __T("");
+	String extension = __T("");
+	String language = __T("");
+	String framerate = __T("23.976");
+	String AR = __T("1.7777777777777777777777777778");
+	String ARx = __T("16");
+	String ARy = __T("9");
 	int trackNum = -1;
 	bool bReencode = false;
 	bool bIsFont = false;
 };
 
 struct videoFile {
-	string filePath = "";
-	string fileName = "";
-	string parentDir = "";
-	string outFileName = "";
-	string subDir = "";
+	String filePath = __T("");
+	String fileName = __T("");
+	String parentDir = __T("");
+	String outFileName = __T("");
+	String subDir = __T("");
 
 	trackInfo videoTrack;
 	vector<trackInfo> audioTracks;
@@ -105,10 +107,19 @@ enum cmd_color{
 };
 
 vector<videoFile> videoList;
-map<string, bool> attchmentList;
+map<String, bool> attchmentList;
 int maxJobs = 0;
 int jobNumber = 0;
 
+
+void MsgColor(String msg, int color)
+{
+	HANDLE hConsole;
+	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hConsole, color);
+	wcout << msg << endl;
+	SetConsoleTextAttribute(hConsole, msg_norm);
+}
 
 void MsgColor(string msg, int color)
 {
@@ -134,93 +145,93 @@ void cleanFilename(videoFile &fileInfo)
 
 		// If we have nothing but .s for a filename, lets get rid of them.
 		do {
-			found = fileInfo.fileName.find(".", found + 1);
-			if (found != string::npos)
+			found = fileInfo.fileName.find(__T("."), found + 1);
+			if (found != String::npos)
 				pos.push_back(found);
-		} while (found != string::npos);
-
+		} while (found != String::npos);
+		
 		if (pos.size() > 3)
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("\\u002E"), " ");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("\\u002E")), __T(" "));
 
 		// If we have nothing but _s for a filename, lets get rid of them.
 		do {
-			found = fileInfo.fileName.find("_", found + 1);
-			if (found != string::npos)
+			found = fileInfo.fileName.find(__T("_"), found + 1);
+			if (found != String::npos)
 				pos.push_back(found);
-		} while (found != string::npos);
+		} while (found != String::npos);
 
 		if (pos.size() > 2)
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("_"), " ");
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("_")), __T(" "));
 
 		// Removing group is easy.
 		if (fileInfo.outFileName[0] == '[')
 		{
-			int endGroup = int(fileInfo.outFileName.find_first_of("]")) + 2;
+			int endGroup = int(fileInfo.outFileName.find_first_of(__T("]"))) + 2;
 			fileInfo.outFileName = fileInfo.outFileName.substr(endGroup, int(fileInfo.outFileName.size()) - endGroup);
 		}
 
 		// But removing the rest?
-		if (!customEpisodeRegex.empty() && regex_match(fileInfo.outFileName, regex(customEpisodeRegex)))
+		if (!customEpisodeRegex.empty() && regex_match(fileInfo.outFileName, wregex(customEpisodeRegex)))
 		{ // Custom RegEx
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex(customEpisodeRegex), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(customEpisodeRegex), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(customEpisodeRegex), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*) - (\\d\\d)\\b.*"))))
 		{ // [Title] - [00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) - (\\d\\d)\\b.*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)\\b(\\d\\d)\\b.*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)\\b.*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*\\b)(\\d\\d)\\b.*"))))
 		{// [Title ][00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)\\b.*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) (\\d\\d)\\b.*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)\\b(\\d\\d)\\b.*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*) - (\\d\\d)v\\d\\b.*"))))
 		{ // [Title] - [00]v0
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) - (\\d\\d)v\\d\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) - (\\d\\d)v\\d\\b.*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)\\b(\\d\\d)v\\d\\b.*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*\\b)(\\d\\d)v\\d\\b.*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*\\b)(\\d\\d)v\\d\\b.*"))))
 		{// [Title ][00]v0
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d)v\\d\\b.*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)\\b(\\d\\d)v\\d\\b.*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) (\\d\\d)v\\d\\b.*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)\\b(\\d\\d)v\\d\\b.*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*)(S\\d\\dE\\d\\d).*"))))
 		{// [Title] [S00E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (S\\d\\dE\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(S\\d\\dE\\d\\d).*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) (S\\d\\dE\\d\\d).*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)(S\\d\\dE\\d\\d).*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*)(\\d\\d\\u002E\\d\\d).*"))))
 		{// [Title] [S00.E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d\\u002E\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d\\u002E\\d\\d).*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) (\\d\\d\\u002E\\d\\d).*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)(\\d\\d\\u002E\\d\\d).*")), __T("$1$2"));
 		}
-		else if (regex_match(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*")))
+		else if (regex_match(fileInfo.outFileName, wregex(__T("(.*)(\\d\\d E\\d\\d).*"))))
 		{// [Title] [S00 E00]
-			fileInfo.subDir = regex_replace(fileInfo.outFileName, regex("(.*) (\\d\\d E\\d\\d).*"), "$1");
-			fileInfo.outFileName = regex_replace(fileInfo.outFileName, regex("(.*)(\\d\\d E\\d\\d).*"), "$1$2");
+			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(__T("(.*) (\\d\\d E\\d\\d).*")), __T("$1"));
+			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(__T("(.*)(\\d\\d E\\d\\d).*")), __T("$1$2"));
 		}
 
 		// And what about that data at the end?
-		if (bAggressiveClean && fileInfo.outFileName.find("[") != string::npos)
+		if (bAggressiveClean && fileInfo.outFileName.find(__T("[")) != String::npos)
 		{
 			do {
-				pos1 = fileInfo.outFileName.find("[");
-				pos2 = fileInfo.outFileName.find("]") + 1;
+				pos1 = fileInfo.outFileName.find(__T("["));
+				pos2 = fileInfo.outFileName.find(__T("]")) + 1;
 				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
 				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
-			} while (fileInfo.outFileName.find("[") != string::npos);
+			} while (fileInfo.outFileName.find(__T("[")) != String::npos);
 		}
 
 		// Now for optional (parenthesis)
-		if (bAggressiveClean && bCleanParenthesis && fileInfo.outFileName.find("(") != string::npos)
+		if (bAggressiveClean && bCleanParenthesis && fileInfo.outFileName.find(__T("(")) != String::npos)
 		{
 			do {
-				pos1 = fileInfo.outFileName.find("(");
-				pos2 = fileInfo.outFileName.find(")") + 1;
+				pos1 = fileInfo.outFileName.find(__T("("));
+				pos2 = fileInfo.outFileName.find(__T(")")) + 1;
 				int remainingSize = (int(fileInfo.outFileName.size()) - pos2);
 				fileInfo.outFileName = fileInfo.outFileName.substr(0, pos1) + fileInfo.outFileName.substr(pos2, remainingSize);
-			} while (fileInfo.outFileName.find("(") != string::npos);
+			} while (fileInfo.outFileName.find(__T("(")) != String::npos);
 		}
 	}
 
@@ -248,7 +259,7 @@ void cleanFilename(videoFile &fileInfo)
 					break;
 				if (i == int(fileInfo.audioTracks.size()) - 1)
 				{
-					MsgColor("[" + fileInfo.fileName + "] WARNING: Could not find proper audio track! Defaulting to first track.", msg_warn);
+					MsgColor(__T("[") + fileInfo.fileName + __T("] WARNING: Could not find proper audio track! Defaulting to first track."), msg_warn);
 					i = 0;
 					break;
 				}
@@ -278,7 +289,7 @@ void selectTracks(videoFile &fileInfo)
 					break;
 				if (i == int(fileInfo.SubtitleTracks.size()) - 1)
 				{
-					MsgColor("[" + fileInfo.fileName + "] WARNING: Could not find proper subtitle track! Defaulting to first track.", msg_warn);
+					MsgColor(__T("[") + fileInfo.fileName + __T("] WARNING: Could not find proper subtitle track! Defaulting to first track."), msg_warn);
 					i = 0;
 					break;
 				}
@@ -678,57 +689,57 @@ videoFile getMP4Info(const char* filepath, int jobNum)
 
 void extractMKV(videoFile fileInfo)
 {
-	MsgColor("[Job " + to_string(fileInfo.jobNum) + "/" + to_string(maxJobs) + "] MKV Extract: " + fileInfo.fileName, msg_info);
+	MsgColor(__T("[Job ") + to_wstring(fileInfo.jobNum) + __T("/") + to_wstring(maxJobs) + __T("] MKV Extract: ") + fileInfo.fileName, msg_info);
 
 	if (!bExtract264 && fileInfo.selectedAudioTrack < 0 && fileInfo.selecteSubtitleTrack < 0 && (!bDoAttachments || (bDoAttachments && !fileInfo.attachmentTracks.size())))
 	{
-		MsgColor("[" + fileInfo.fileName + "] WARNING: Nothing to extract?", msg_warn);
+		MsgColor(__T("[") + fileInfo.fileName + __T("] WARNING: Nothing to extract?"), msg_warn);
 		return;
 	}
 	
-	string cmdstr = mkvtoolnixDir + "mkvextract.exe \"" + fileInfo.filePath + "\" ";
+	String cmdstr = mkvtoolnixDir + __T("mkvextract.exe \"") + fileInfo.filePath + __T("\" ");
 	
 	if (bExtract264)
-		cmdstr += "tracks " + to_string(fileInfo.videoTrack.trackNum) + ":\"" + WorkDir + fileInfo.outFileName + ".264\" ";
+		cmdstr += __T("tracks ") + to_wstring(fileInfo.videoTrack.trackNum) + __T(":\"") + WorkDir + fileInfo.outFileName + __T(".264\" ");
 
 	if (fileInfo.selectedAudioTrack >= 0)
-		cmdstr += "tracks " + to_string(fileInfo.audioTracks[fileInfo.selectedAudioTrack].trackNum) + ":\"" + WorkDir + fileInfo.outFileName + "." + fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension + "\" ";
+		cmdstr += __T("tracks ") + to_wstring(fileInfo.audioTracks[fileInfo.selectedAudioTrack].trackNum) + __T(":\"") + WorkDir + fileInfo.outFileName + __T(".") + fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension + __T("\" ");
 
 	if (fileInfo.selecteSubtitleTrack >= 0)
-		cmdstr += "tracks " + to_string(fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].trackNum) + ":\"" + WorkDir + fileInfo.outFileName + "." + fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension + "\" ";
+		cmdstr += __T("tracks ") + to_wstring(fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].trackNum) + __T(":\"") + WorkDir + fileInfo.outFileName + __T(".") + fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension + __T("\" ");
 
 	if (bDoAttachments && fileInfo.attachmentTracks.size())
 	{
 		for each (trackInfo atch in fileInfo.attachmentTracks)
-			cmdstr += "attachments " + to_string(atch.trackNum) + ":\"" + WorkDir + atch.filename + "\" ";
+			cmdstr += __T("attachments ") + to_wstring(atch.trackNum) + __T(":\"") + WorkDir + atch.filename + __T("\" ");
 	}
 
-	system(cmdstr.data());
+	_wsystem(cmdstr.data());
 }
 
 void createMeGUIJobs(videoFile fileInfo)
 {
-	string lJobTag = "\t\t<string>";
-	string rJobTag = "</string>\n";
-	string tempList = "";
+	String lJobTag = __T("\t\t<String>");
+	String rJobTag = __T("</String>\n");
+	String tempList = __T("");
 
-	MsgColor("[Job " + to_string(fileInfo.jobNum) + "/" + to_string(maxJobs) + "] Creating MeGUI Jobs: " + fileInfo.fileName, msg_info);
+	MsgColor(__T("[Job ") + to_wstring(fileInfo.jobNum) + __T("/") + to_wstring(maxJobs) + __T("] Creating MeGUI Jobs: ") + fileInfo.fileName, msg_info);
 
 	// AVS Script
-	ofstream myAVSFile(string(WorkDir + fileInfo.outFileName + ".avs"));
+	wofstream myAVSFile(String(WorkDir + fileInfo.outFileName + __T(".avs")));
 	if (myAVSFile.is_open())
 	{
 		try {
 			if (!bExtract264)
-				myAVSFile << format(AVSTemplate) % fileInfo.filePath;
+				myAVSFile << wformat(AVSTemplate) % fileInfo.filePath;
 			else
-				myAVSFile << format(AVSTemplate_264) % fileInfo.outFileName % WorkDir;
+				myAVSFile << wformat(AVSTemplate_264) % fileInfo.outFileName % WorkDir;
 
-			if (fileInfo.selecteSubtitleTrack != -1 && (fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == "ass" || fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == "srt"))
-				myAVSFile << format(AVSTemplate_Subs) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
+			if (fileInfo.selecteSubtitleTrack != -1 && (fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == __T("ass") || fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == __T("srt")))
+				myAVSFile << wformat(AVSTemplate_Subs) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
 			else if (fileInfo.selecteSubtitleTrack != -1)
-				myAVSFile << format(AVSTemplate_Sups) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
-			cout << "Created AVS Script." << endl;
+				myAVSFile << wformat(AVSTemplate_Sups) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
+			wcout << L"Created AVS Script." << endl;
 		}
 		catch (std::exception e)
 		{
@@ -743,17 +754,18 @@ void createMeGUIJobs(videoFile fileInfo)
 	}
 	
 	// 264 Job Script
-	ofstream myVideoJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - 264.xml"));
+	wofstream myVideoJob(String(MeGUIDir + __T("jobs\\job") + to_wstring(jobNumber) + __T(" - ") + fileInfo.outFileName + __T(" - 264.xml")));
 	if (myVideoJob.is_open())
 	{
 		try {
-			myVideoJob << format(videoJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % fileInfo.videoTrack.AR % fileInfo.videoTrack.ARx % fileInfo.videoTrack.ARy % to_string(jobNumber) % to_string(jobNumber + (fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
-			cout << "Created 264 Job." << endl;
-			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - 264" + rJobTag;
+			myVideoJob << wformat(videoJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % fileInfo.videoTrack.AR % fileInfo.videoTrack.ARx % fileInfo.videoTrack.ARy % to_wstring(jobNumber) % to_wstring(jobNumber + (fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
+			wcout << "Created 264 Job." << endl;
+			tempList += lJobTag + __T("job") + to_wstring(jobNumber) + __T(" - ") + fileInfo.outFileName + __T(" - 264") + rJobTag;
 			jobNumber++;
 		}
 		catch (std::exception e)
 		{
+			
 			MsgColor("264 XML Job ERROR: " + string(e.what()), msg_erro);
 		}
 		myVideoJob.close();
@@ -767,13 +779,13 @@ void createMeGUIJobs(videoFile fileInfo)
 	// Audio Job Script
 	if (fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode)
 	{
-		ofstream myAudioJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - AC3.xml"));
+		wofstream myAudioJob(String(MeGUIDir + __T("jobs\\job") + to_wstring(jobNumber) + __T(" - ") + fileInfo.outFileName + __T(" - AC3.xml")));
 		if (myAudioJob.is_open())
 		{
 			try {
-				myAudioJob << format(audioJobTemplate) % fileInfo.outFileName % WorkDir % fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension % to_string(jobNumber);
-				cout << "Created AC3 Job." << endl;
-				tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - AC3" + rJobTag;
+				myAudioJob << wformat(audioJobTemplate) % fileInfo.outFileName % WorkDir % fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension % to_wstring(jobNumber);
+				wcout << "Created AC3 Job." << endl;
+				tempList += lJobTag + __T("job") + to_wstring(jobNumber) + __T(" - ") + fileInfo.outFileName + __T(" - AC3") + rJobTag;
 				jobNumber++;
 			}
 			catch (std::exception e)
@@ -784,30 +796,30 @@ void createMeGUIJobs(videoFile fileInfo)
 		}
 		else
 		{
-			MsgColor("ERROR: Unable to open AC3 XML file!", msg_erro);
+			MsgColor(__T("ERROR: Unable to open AC3 XML file!"), msg_erro);
 			return;
 		}
 	}
 
 	// Mux Job Script
-	ofstream myMuxJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber)  + " - " + fileInfo.outFileName + " - MKV.xml"));
+	wofstream myMuxJob(String(MeGUIDir + __T("jobs\\job") + to_wstring(jobNumber)  + __T(" - ") + fileInfo.outFileName + __T(" - MKV.xml")));
 	if (myMuxJob.is_open())
 	{
 		try {
-			string outDir = OutputDir;
+			String outDir = OutputDir;
 			if (bCreateSubDir && !fileInfo.subDir.empty())
-				outDir += fileInfo.subDir + "\\";
+				outDir += fileInfo.subDir + __T("\\");
 
-			string framerate = " xsi:nil=\"true\" />";
+			String framerate = __T(" xsi:nil=\"true\" />");
 			if (!fileInfo.videoTrack.framerate.empty())
-				framerate = ">" + fileInfo.videoTrack.framerate + "</Framerate>";
+				framerate = L">" + fileInfo.videoTrack.framerate + __T("</Framerate>");
 			if (!bExtract264)
-				myMuxJob << format(muxJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1)) % fileInfo.filePath;
+				myMuxJob << wformat(muxJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : L"ac3") : L"m4a") % framerate % to_wstring(jobNumber) % to_wstring(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1)) % fileInfo.filePath;
 			else
-				myMuxJob << format(muxJobTemplate_264) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
+				myMuxJob << wformat(muxJobTemplate_264) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : L"ac3") : L"m4a") % framerate % to_wstring(jobNumber) % to_wstring(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
 
-			cout << "Created Mux Job." << endl;
-			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - MKV" + rJobTag;
+			wcout << L"Created Mux Job." << endl;
+			tempList += lJobTag + __T("job") + to_wstring(jobNumber) + __T(" - ") + fileInfo.outFileName + __T(" - MKV") + rJobTag;
 			jobNumber++;
 		}
 		catch (std::exception e)
@@ -818,16 +830,17 @@ void createMeGUIJobs(videoFile fileInfo)
 	}
 	else
 	{
-		MsgColor("ERROR: Unable to open MKV XML file!", msg_erro);
+		MsgColor(__T("ERROR: Unable to open MKV XML file!"), msg_erro);
 		return;
 	}
 
 	// Add Job List
-	ifstream myJobListRead(string(MeGUIDir + "joblists.xml"));
-	string curLine;
-	vector<string> jobListRAW;
+	wifstream myJobListRead(String(MeGUIDir + __T("joblists.xml")));
+	String curLine;
+	vector<String> jobListRAW;
 	if (myJobListRead.is_open())
 	{
+		
 		while (getline(myJobListRead, curLine))
 			jobListRAW.push_back(curLine);
 
@@ -835,37 +848,37 @@ void createMeGUIJobs(videoFile fileInfo)
 	}
 	else 
 	{
-		MsgColor("ERROR: Unable to open joblists.xml to read!", msg_erro);
+		MsgColor(__T("ERROR: Unable to open joblists.xml to read!"), msg_erro);
 		return;
 	}
 
-	ofstream myJobListWrite(string(MeGUIDir + "joblists.xml"));
+	wofstream myJobListWrite(String(MeGUIDir + __T("joblists.xml")));
 	if (myJobListWrite.is_open())
 	{
 		try {
 			if (jobListRAW.size() == 0)
-				myJobListWrite << format(jobListTemplate) % tempList;
+				myJobListWrite << wformat(jobListTemplate) % tempList;
 			else
 			{
 				int x;
 				for (x = 0; x <= int(jobListRAW.size()) - 1; x++)
 				{
-					if (jobListRAW[x].find(fileInfo.outFileName) != string::npos)
+					if (jobListRAW[x].find(fileInfo.outFileName) != String::npos)
 					{
 						jobListRAW.erase(jobListRAW.begin() + x);
 						x--;
 						continue;
 					}
 					
-					else if (jobListRAW[x].find("<mainJobList />") != string::npos)
-						jobListRAW[x] = "<mainJobList>\n" + tempList + "</mainJobList>";
-					else if (jobListRAW[x].find("</mainJobList>") != string::npos)
+					else if (jobListRAW[x].find(L"<mainJobList />") != String::npos)
+						jobListRAW[x] = __T("<mainJobList>\n") + tempList + __T("</mainJobList>");
+					else if (jobListRAW[x].find(L"</mainJobList>") != String::npos)
 						jobListRAW[x] = tempList + jobListRAW[x];
 
 					myJobListWrite << jobListRAW[x] << endl;
 				}
 			}
-			cout << "Created JobList." << endl;
+			wcout << "Created JobList." << endl;
 		}
 		catch (std::exception e)
 		{
@@ -875,16 +888,16 @@ void createMeGUIJobs(videoFile fileInfo)
 	}
 	else
 	{
-		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
+		MsgColor(__T("ERROR: Unable to open joblist.xml!"), msg_erro);
 		return;
 	}
 }
 
 void clearMeGUIJobs()
 {
-	ifstream myJobListRead(string(MeGUIDir + "joblists.xml"));
-	string curLine;
-	vector<string> jobListRAW;
+	wifstream myJobListRead(String(MeGUIDir + __T("joblists.xml")));
+	String curLine;
+	vector<String> jobListRAW;
 	if (myJobListRead.is_open())
 	{
 		while (getline(myJobListRead, curLine))
@@ -894,36 +907,37 @@ void clearMeGUIJobs()
 	}
 	else
 	{
-		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
+		MsgColor(__T("ERROR: Unable to open joblist.xml!"), msg_erro);
 		return;
 	}
 
-	MsgColor("Clearing MeGUI Jobs", msg_info);
+	MsgColor(__T("Clearing MeGUI Jobs"), msg_info);
 
-	ofstream myJobListWrite(string(MeGUIDir + "joblists.xml"));
+	wofstream myJobListWrite(String(MeGUIDir + __T("joblists.xml")));
 	if (myJobListWrite.is_open())
 	{
 		try {
 			int x;
 			for (x = 0; x <= int(jobListRAW.size()) - 1; x++)
 			{
-				if ((bClearMeGUIJobs && jobListRAW[x].find("string") != string::npos))
+				if ((bClearMeGUIJobs && jobListRAW[x].find(L"String") != String::npos))
 				{
-					if (bClearMeGUIJobs && jobListRAW[x].find("string") != string::npos)
+					if (bClearMeGUIJobs && jobListRAW[x].find(L"String") != String::npos)
 					{
-						string file = jobListRAW[x].substr(jobListRAW[x].find(">") + 1, jobListRAW[x].find("</") - (jobListRAW[x].find(">") + 1));
-						if (remove(string(MeGUIDir + "\\jobs\\" + file + ".xml").c_str()) == 0)
-							cout << "Removed: MeGUI\\jobs\\" + file + ".xml\n";
+
+						String file = jobListRAW[x].substr(jobListRAW[x].find(L">") + 1, jobListRAW[x].find(L"</") - (jobListRAW[x].find(L">") + 1));
+						if (_wremove(String(MeGUIDir + __T("\\jobs\\") + file + __T(".xml")).c_str()) == 0)
+							wcout << __T("Removed: MeGUI\\jobs\\") + file + __T(".xml\n");
 					}
 					jobListRAW.erase(jobListRAW.begin() + x);
 					x--;
 					continue;
 				}
-				else if (bClearMeGUIJobs && jobListRAW[x].find("<mainJobList>") != string::npos)
+				else if (bClearMeGUIJobs && jobListRAW[x].find(L"<mainJobList>") != String::npos)
 				{
-					jobListRAW[x] = regex_replace(jobListRAW[x], regex("mainJobList"), "mainJobList /");
+					jobListRAW[x] = regex_replace(jobListRAW[x], wregex(__T("mainJobList")), __T("mainJobList /"));
 				}
-				else if (bClearMeGUIJobs && jobListRAW[x].find("</mainJobList>") != string::npos)
+				else if (bClearMeGUIJobs && jobListRAW[x].find(L"</mainJobList>") != String::npos)
 				{
 					jobListRAW.erase(jobListRAW.begin() + x);
 					x--;
@@ -933,7 +947,7 @@ void clearMeGUIJobs()
 				myJobListWrite << jobListRAW[x] << endl;
 			}
 			
-			cout << "Cleaned JobList." << endl;
+			wcout << "Cleaned JobList." << endl;
 		}
 		catch (std::exception e)
 		{
@@ -943,30 +957,32 @@ void clearMeGUIJobs()
 	}
 	else
 	{
-		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
+		MsgColor(__T("ERROR: Unable to open joblist.xml!"), msg_erro);
 		return;
 	}
 }
 
-int processOptions(int ac, char* av[])
+int processOptions(int ac, wchar_t* av[])
 {
 	try {
-		string config_file;
+		String config_file;
+
+		string _config_file, _mkvtoolnixDir, _MeGUIDir, _WorkDir, _OutputDir, _defaultAudioLang, _defaultSubtitleLang, _customEpisodeRegex;
 
 		// Declare a group of options that will be allowed only on command line
 		po::options_description basic("Base Options");
 		basic.add_options()
 			("help,h", "Produce help message")
-			("config,c", po::value<string>(&config_file)->default_value("MeGUIHelper.cfg"), "Name of configuration file.")
+			("config,c", po::value<string>(&_config_file)->default_value("MeGUIHelper.cfg"), "Name of configuration file.")
 			;
 
 		// Declare a group of options that will be allowed both on command line and in config file
 		po::options_description directories("Directories");
 		directories.add_options()
-			("mkvtoolnix-Dir", po::value< string >(&mkvtoolnixDir), "Path to mkvtoolnix (Required)")
-			("MeGUI-Dir", po::value< string >(&MeGUIDir), "Path to MeGUI (Required)")
-			("Work-Dir,w", po::value< string >(&WorkDir), "Temporary raw file location\n(Default: MeGUI Helper's location)")
-			("Output-Dir,o", po::value< string >(&OutputDir), "Output of encoded files\n(Default: MeGUI Helper's location)")
+			("mkvtoolnix-Dir", po::value< string >(&_mkvtoolnixDir), "Path to mkvtoolnix (Required)")
+			("MeGUI-Dir", po::value< string >(&_MeGUIDir), "Path to MeGUI (Required)")
+			("Work-Dir,w", po::value< string >(&_WorkDir), "Temporary raw file location\n(Default: MeGUI Helper's location)")
+			("Output-Dir,o", po::value< string >(&_OutputDir), "Output of encoded files\n(Default: MeGUI Helper's location)")
 			;
 
 		po::options_description operations("Operation Options");
@@ -977,8 +993,8 @@ int processOptions(int ac, char* av[])
 
 		po::options_description languages("Language Options");
 		languages.add_options()
-			("AudioLang,A", po::value<string>(&defaultAudioLang)->default_value("jpn"), "Default audio language")
-			("SubtitleLang,S", po::value<string>(&defaultSubtitleLang)->default_value("eng"), "Default subtitle language")
+			("AudioLang,A", po::value<string>(&_defaultAudioLang)->default_value("jpn"), "Default audio language")
+			("SubtitleLang,S", po::value<string>(&_defaultSubtitleLang)->default_value("eng"), "Default subtitle language")
 			("AudioTrack,a", po::value<int>(&forcedAudioTrack)->default_value(-1), "Force all videos to use this audio track")
 			("SubtitleTrack,s", po::value<int>(&forcedSubtitleTrack)->default_value(-1), "Force all videos to use this subtitle track")
 			("bRelativeTrack,r", po::value<bool>(&bRelativeTrack)->default_value(true), "Make forced tracks relative \n(Example: '-r 1' will select the first track of two available)")
@@ -1002,7 +1018,7 @@ int processOptions(int ac, char* av[])
 		// Hidden options, will be allowed both on command line and in config file, but will not be shown to the user.
 		po::options_description hidden("Hidden Options");
 		hidden.add_options()
-			("customEpisodeRegex", po::value< string >(&customEpisodeRegex), "A custom regex string for episode counters")
+			("customEpisodeRegex", po::value<string>(&_customEpisodeRegex), "A custom regex String for episode counters")
 			;
 
 		po::options_description cmdline_options;
@@ -1018,13 +1034,16 @@ int processOptions(int ac, char* av[])
 		p.add("input-file", -1);
 
 		po::variables_map vm;
-		store(po::command_line_parser(ac, av).options(cmdline_options).positional(p).run(), vm);
+		store(po::wcommand_line_parser(ac, av).options(cmdline_options).positional(p).run(), vm);
 		notify(vm);
 
-		ifstream ifs(config_file.c_str());
+		wstring_convert<codecvt_utf8_utf16<wchar_t>> converter;
+		config_file = converter.from_bytes(_config_file);
+
+		ifstream ifs(_config_file.c_str());
 		if (!ifs)
 		{
-			MsgColor("ERROR: Cannot open config file: " + config_file, msg_erro);
+			MsgColor(__T("ERROR: Cannot open config file: ") + config_file, msg_erro);
 			return errno;
 		}
 		else
@@ -1032,6 +1051,14 @@ int processOptions(int ac, char* av[])
 			store(parse_config_file(ifs, config_file_options), vm);
 			notify(vm);
 		}
+		
+		mkvtoolnixDir = converter.from_bytes(_mkvtoolnixDir);
+		MeGUIDir = converter.from_bytes(_MeGUIDir);
+		WorkDir = converter.from_bytes(_WorkDir);
+		OutputDir = converter.from_bytes(_OutputDir);
+		defaultAudioLang = converter.from_bytes(_defaultAudioLang);
+		defaultSubtitleLang = converter.from_bytes(_defaultSubtitleLang);
+		customEpisodeRegex = converter.from_bytes(_customEpisodeRegex);
 
 		// If all is well, config and options loaded and ready!
 		if (vm.count("help")) {
@@ -1044,72 +1071,74 @@ int processOptions(int ac, char* av[])
 			return 0;
 		}
 
-		char cPath[BUFSIZ];
-		if (!_getcwd(cPath, sizeof(cPath)))
+		wchar_t * cPath;
+		
+		if ( !(cPath = _wgetcwd(NULL,0)) )
 			return errno;
 
 		if (mkvtoolnixDir.empty() || MeGUIDir.empty())
 		{
-			MsgColor("ERROR: Please fix your config file to include a working path to mkvtoolnix and MeGUI!", msg_erro);
+			MsgColor(__T("ERROR: Please fix your config file to include a working path to mkvtoolnix and MeGUI!"), msg_erro);
 			return errno;
 		}
 		else
 		{
 			if (mkvtoolnixDir[int(mkvtoolnixDir.size()) -1]!= '//')
-				mkvtoolnixDir += "\\";
+				mkvtoolnixDir += __T("\\");
 			if (MeGUIDir[int(MeGUIDir.size()) - 1] != '//')
-				MeGUIDir += "\\";
+				MeGUIDir += __T("\\");
 		}
 
 		if (!WorkDir.empty())
 		{
 			if (WorkDir[int(WorkDir.size()) - 1] != '//')
-				WorkDir += "\\";
+				WorkDir += __T("\\");
 		}
 		else
-			WorkDir = string(cPath) + "//";
+			WorkDir = String(cPath) + __T("//");
 
 		if (!OutputDir.empty())
 		{
 			if (OutputDir[int(OutputDir.size()) - 1] != '//')
-				OutputDir += "\\";
+				OutputDir += __T("\\");
 		}
 		else
-			OutputDir = string(cPath) + "//";
+			OutputDir = String(cPath) + __T("//");
+			
 	}
 	catch (std::exception e)
 	{
-		cout << e.what() << "\n";
+		wcout << e.what() << "\n";
 		return errno;
 	}
 	return 0;
 }
 
-int main(int argc, char *argv[])
+int wmain(int argc, wchar_t *argv[])
 {
 	videoFile tempVideo;
-	string tempArg;
-	vector<string> args;
-	vector<string> vidPaths;
+	String tempArg;
+	vector<String> args;
+	vector<String> vidPaths;
 
 	for (size_t i = 0; i < argc; ++i)
 	{
 		tempArg = argv[i];
-		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == ".mkv" || tempArg.substr(tempArg.length() - 4, 4) == ".mp4"))
+		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == L".mkv" || tempArg.substr(tempArg.length() - 4, 4) == L".mp4"))
 			continue;
 		args.push_back(tempArg);
 	}
 
-	char ** av = new char*[args.size()];
+	wchar_t ** av = new wchar_t*[args.size()];
 	for (size_t i = 0; i < args.size(); i++)
 	{
-		av[i] = new char[args[i].size() + 1];
-		strcpy(av[i], args[i].c_str());
+		av[i] = new wchar_t[args[i].size() + 1];
+		wcscpy(av[i], args[i].c_str());
 	}
 
 	if (processOptions(args.size(), av))
 	{
-		MsgColor("Error loading options/config.", msg_erro);
+		MsgColor(__T("Error loading options/config."), msg_erro);
 		return errno;
 	}
 
@@ -1122,7 +1151,7 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; ++i)
 	{
 		tempArg = argv[i];
-		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == ".mkv" || tempArg.substr(tempArg.length() - 4, 4) == ".mp4"))
+		if (tempArg.length() > 4 && (tempArg.substr(tempArg.length() - 4, 4) == L".mkv" || tempArg.substr(tempArg.length() - 4, 4) == L".mp4"))
 		{
 			vidPaths.push_back(tempArg);
 			maxJobs++;
@@ -1131,17 +1160,17 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < vidPaths.size(); i++)
 	{
-		if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mkv")
+		if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == L".mkv")
 			tempVideo = getMKVInfo(vidPaths[i].data(), i+1);
-		else if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == ".mp4")
+		else if (vidPaths[i].substr(vidPaths[i].length() - 4, 4) == L".mp4")
 			tempVideo = getMP4Info(vidPaths[i].data(), i + 1);
 
 		
-		if (tempVideo.fileName == "")
+		if (tempVideo.fileName == L"")
 			continue;
 		else if (tempVideo.audioTracks.empty())
 		{
-			MsgColor("WARNING: No audio detected!", msg_warn);
+			MsgColor(__T("WARNING: No audio detected!"), msg_warn);
 			continue;
 		}
 
@@ -1161,22 +1190,22 @@ int main(int argc, char *argv[])
 
 		if (bDoAttachments && bInstallFonts && !bJobFilesOnly)
 		{
-			for (map<string, bool>::iterator it = attchmentList.begin(); it != attchmentList.end(); ++it)
+			for (map<String, bool>::iterator it = attchmentList.begin(); it != attchmentList.end(); ++it)
 			{
 				tempArg = WorkDir + it->first;
 				AddFontResource((LPCWSTR)tempArg.c_str());
 			}
 
-			MsgColor("Please make sure to manually install any fonts that were extracted!", msg_whit);
+			MsgColor(__T("Please make sure to manually install any fonts that were extracted!"), msg_whit);
 		}
 
-		cout << "Run MeGUI? (Y) ";
-		getline(cin, tempArg);
-		if (tempArg == "y" || tempArg == "Y" || tempArg == "")
-			system(string("start " + string(MeGUIDir) + "MeGUI.exe").data());
+		wcout << "Run MeGUI? (Y) ";
+		getline(wcin, tempArg);
+		if (tempArg == L"y" || tempArg == L"Y" || tempArg == L"")
+			_wsystem(String(L"start " + MeGUIDir + L"MeGUI.exe").data());
 	}
 	else
-		cout << ": No MKV files in arguement!" << endl << "Use: MeGUIHelper.exe [filename] ..." << endl;
+		wcout << ": No MKV files in arguement!" << endl << "Use: MeGUIHelper.exe [filename] ..." << endl;
 
 	return 0;
 }
