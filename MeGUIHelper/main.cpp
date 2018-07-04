@@ -96,17 +96,27 @@ struct videoFile {
 	int jobNum = -1;
 };
 
+enum cmd_color{
+	msg_whit = 5,
+	msg_norm = 7,
+	msg_info = 10,
+	msg_erro = 12,
+	msg_warn = 14
+};
+
 vector<videoFile> videoList;
 map<string, bool> attchmentList;
 int maxJobs = 0;
 int jobNumber = 0;
 
 
-void SetColor(int color)
+void MsgColor(string msg, int color)
 {
 	HANDLE hConsole;
 	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(hConsole, color);
+	cout << msg << endl;
+	SetConsoleTextAttribute(hConsole, msg_norm);
 }
 
 void cleanFilename(videoFile &fileInfo)
@@ -238,9 +248,7 @@ void cleanFilename(videoFile &fileInfo)
 					break;
 				if (i == int(fileInfo.audioTracks.size()) - 1)
 				{
-					SetColor(14);
-					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper audio track! Defaulting to first track.\n";
-					SetColor(7);
+					MsgColor("[" + fileInfo.fileName + "] WARNING: Could not find proper audio track! Defaulting to first track.", msg_warn);
 					i = 0;
 					break;
 				}
@@ -270,9 +278,7 @@ void selectTracks(videoFile &fileInfo)
 					break;
 				if (i == int(fileInfo.SubtitleTracks.size()) - 1)
 				{
-					SetColor(14);
-					cout << "[" << fileInfo.fileName << "] WARNING: Could not find proper subtitle track! Defaulting to first track.\n";
-					SetColor(7);
+					MsgColor("[" + fileInfo.fileName + "] WARNING: Could not find proper subtitle track! Defaulting to first track.", msg_warn);
 					i = 0;
 					break;
 				}
@@ -670,171 +676,149 @@ videoFile getMP4Info(const char* filepath, int jobNum)
 	return fileInfo;
 }
 
-void extractMKV(videoFile file)
+void extractMKV(videoFile fileInfo)
 {
-	SetColor(10);
-	cout << "[Job " << file.jobNum << "/" << maxJobs << "] MKV Extract: " << file.fileName << endl;
-	SetColor(7);
+	MsgColor("[Job " + to_string(fileInfo.jobNum) + "/" + to_string(maxJobs) + "] MKV Extract: " + fileInfo.fileName, msg_info);
 
-	if (!bExtract264 && file.selectedAudioTrack < 0 && file.selecteSubtitleTrack < 0 && (!bDoAttachments || (bDoAttachments && !file.attachmentTracks.size())))
+	if (!bExtract264 && fileInfo.selectedAudioTrack < 0 && fileInfo.selecteSubtitleTrack < 0 && (!bDoAttachments || (bDoAttachments && !fileInfo.attachmentTracks.size())))
 	{
-		SetColor(14);
-		cout << "[" << file.fileName << "] WARNING: Nothing to extract?\n";
-		SetColor(7);
+		MsgColor("[" + fileInfo.fileName + "] WARNING: Nothing to extract?", msg_warn);
 		return;
 	}
 	
-	string cmdstr = mkvtoolnixDir + "mkvextract.exe \"" + file.filePath + "\" ";
+	string cmdstr = mkvtoolnixDir + "mkvextract.exe \"" + fileInfo.filePath + "\" ";
 	
 	if (bExtract264)
-		cmdstr += "tracks " + to_string(file.videoTrack.trackNum) + ":\"" + WorkDir + file.outFileName + ".264\" ";
+		cmdstr += "tracks " + to_string(fileInfo.videoTrack.trackNum) + ":\"" + WorkDir + fileInfo.outFileName + ".264\" ";
 
-	if (file.selectedAudioTrack >= 0)
-		cmdstr += "tracks " + to_string(file.audioTracks[file.selectedAudioTrack].trackNum) + ":\"" + WorkDir + file.outFileName + "." + file.audioTracks[file.selectedAudioTrack].extension + "\" ";
+	if (fileInfo.selectedAudioTrack >= 0)
+		cmdstr += "tracks " + to_string(fileInfo.audioTracks[fileInfo.selectedAudioTrack].trackNum) + ":\"" + WorkDir + fileInfo.outFileName + "." + fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension + "\" ";
 
-	if (file.selecteSubtitleTrack >= 0)
-		cmdstr += "tracks " + to_string(file.SubtitleTracks[file.selecteSubtitleTrack].trackNum) + ":\"" + WorkDir + file.outFileName + "." + file.SubtitleTracks[file.selecteSubtitleTrack].extension + "\" ";
+	if (fileInfo.selecteSubtitleTrack >= 0)
+		cmdstr += "tracks " + to_string(fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].trackNum) + ":\"" + WorkDir + fileInfo.outFileName + "." + fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension + "\" ";
 
-	if (bDoAttachments && file.attachmentTracks.size())
+	if (bDoAttachments && fileInfo.attachmentTracks.size())
 	{
-		for each (trackInfo atch in file.attachmentTracks)
+		for each (trackInfo atch in fileInfo.attachmentTracks)
 			cmdstr += "attachments " + to_string(atch.trackNum) + ":\"" + WorkDir + atch.filename + "\" ";
 	}
 
 	system(cmdstr.data());
 }
 
-void createMeGUIJobs(videoFile file)
+void createMeGUIJobs(videoFile fileInfo)
 {
 	string lJobTag = "\t\t<string>";
 	string rJobTag = "</string>\n";
 	string tempList = "";
 
-	SetColor(10);
-	cout << "[Job " << file.jobNum << "/" << maxJobs << "] Creating MeGUI Jobs: " << file.fileName << endl;
-	SetColor(7);
+	MsgColor("[Job " + to_string(fileInfo.jobNum) + "/" + to_string(maxJobs) + "] Creating MeGUI Jobs: " + fileInfo.fileName, msg_info);
 
 	// AVS Script
-	ofstream myAVSFile(string(WorkDir + file.outFileName + ".avs"));
+	ofstream myAVSFile(string(WorkDir + fileInfo.outFileName + ".avs"));
 	if (myAVSFile.is_open())
 	{
 		try {
 			if (!bExtract264)
-				myAVSFile << format(AVSTemplate) % file.filePath;
+				myAVSFile << format(AVSTemplate) % fileInfo.filePath;
 			else
-				myAVSFile << format(AVSTemplate_264) % file.outFileName % WorkDir;
+				myAVSFile << format(AVSTemplate_264) % fileInfo.outFileName % WorkDir;
 
-			if (file.selecteSubtitleTrack != -1 && (file.SubtitleTracks[file.selecteSubtitleTrack].extension == "ass" || file.SubtitleTracks[file.selecteSubtitleTrack].extension == "srt"))
-				myAVSFile << format(AVSTemplate_Subs) % file.outFileName % WorkDir % file.SubtitleTracks[file.selecteSubtitleTrack].extension;
-			else if (file.selecteSubtitleTrack != -1)
-				myAVSFile << format(AVSTemplate_Sups) % file.outFileName % WorkDir % file.SubtitleTracks[file.selecteSubtitleTrack].extension;
+			if (fileInfo.selecteSubtitleTrack != -1 && (fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == "ass" || fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension == "srt"))
+				myAVSFile << format(AVSTemplate_Subs) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
+			else if (fileInfo.selecteSubtitleTrack != -1)
+				myAVSFile << format(AVSTemplate_Sups) % fileInfo.outFileName % WorkDir % fileInfo.SubtitleTracks[fileInfo.selecteSubtitleTrack].extension;
 			cout << "Created AVS Script." << endl;
 		}
 		catch (std::exception e)
 		{
-			SetColor(12);
-			cout << "AVS ERROR: " << e.what() << endl;
-			SetColor(7);
+			MsgColor("AVS ERROR: " + string(e.what()), msg_erro);
 		}
 		myAVSFile.close();
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open AVS file!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open AVS file!", msg_erro);
 		return;
 	}
 	
 	// 264 Job Script
-	ofstream myVideoJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + file.outFileName + " - 264.xml"));
+	ofstream myVideoJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - 264.xml"));
 	if (myVideoJob.is_open())
 	{
 		try {
-			myVideoJob << format(videoJobTemplate) % file.outFileName % WorkDir % WorkDir % file.videoTrack.AR % file.videoTrack.ARx % file.videoTrack.ARy % to_string(jobNumber) % to_string(jobNumber + (file.audioTracks[file.selectedAudioTrack].bReencode ? 2 : 1));
+			myVideoJob << format(videoJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % fileInfo.videoTrack.AR % fileInfo.videoTrack.ARx % fileInfo.videoTrack.ARy % to_string(jobNumber) % to_string(jobNumber + (fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
 			cout << "Created 264 Job." << endl;
-			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + file.outFileName + " - 264" + rJobTag;
+			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - 264" + rJobTag;
 			jobNumber++;
 		}
 		catch (std::exception e)
 		{
-			SetColor(12);
-			cout << "264 Job ERROR: " << e.what() << endl;
-			SetColor(7);
+			MsgColor("264 XML Job ERROR: " + string(e.what()), msg_erro);
 		}
 		myVideoJob.close();
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open 264 XML file!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open 264 XML file!", msg_erro);
 		return;
 	}
 
 	// Audio Job Script
-	if (file.audioTracks[file.selectedAudioTrack].bReencode)
+	if (fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode)
 	{
-		ofstream myAudioJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + file.outFileName + " - AC3.xml"));
+		ofstream myAudioJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - AC3.xml"));
 		if (myAudioJob.is_open())
 		{
 			try {
-				myAudioJob << format(audioJobTemplate) % file.outFileName % WorkDir % file.audioTracks[file.selectedAudioTrack].extension % to_string(jobNumber);
+				myAudioJob << format(audioJobTemplate) % fileInfo.outFileName % WorkDir % fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension % to_string(jobNumber);
 				cout << "Created AC3 Job." << endl;
-				tempList += lJobTag + "job" + to_string(jobNumber) + " - " + file.outFileName + " - AC3" + rJobTag;
+				tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - AC3" + rJobTag;
 				jobNumber++;
 			}
 			catch (std::exception e)
 			{
-				SetColor(12);
-				cout << "AC3 Job ERROR: " << e.what() << endl;
-				SetColor(7);
+				MsgColor("AC3 XML Job ERROR: " + string(e.what()), msg_erro);
 			}
 			myAudioJob.close();
 		}
 		else
 		{
-			SetColor(12);
-			cout << "ERROR: Unable to open AC3 XML file!" << endl;
-			SetColor(7);
+			MsgColor("ERROR: Unable to open AC3 XML file!", msg_erro);
 			return;
 		}
 	}
 
 	// Mux Job Script
-	ofstream myMuxJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber)  + " - " + file.outFileName + " - MKV.xml"));
+	ofstream myMuxJob(string(MeGUIDir + "jobs\\job" + to_string(jobNumber)  + " - " + fileInfo.outFileName + " - MKV.xml"));
 	if (myMuxJob.is_open())
 	{
 		try {
 			string outDir = OutputDir;
-			if (bCreateSubDir && !file.subDir.empty())
-				outDir += file.subDir + "\\";
+			if (bCreateSubDir && !fileInfo.subDir.empty())
+				outDir += fileInfo.subDir + "\\";
 
 			string framerate = " xsi:nil=\"true\" />";
-			if (!file.videoTrack.framerate.empty())
-				framerate = ">" + file.videoTrack.framerate + "</Framerate>";
+			if (!fileInfo.videoTrack.framerate.empty())
+				framerate = ">" + fileInfo.videoTrack.framerate + "</Framerate>";
 			if (!bExtract264)
-				myMuxJob << format(muxJobTemplate) % file.outFileName % WorkDir % WorkDir % outDir % (file.selectedAudioTrack >= 0 ? (!file.audioTracks[file.selectedAudioTrack].bReencode ? file.audioTracks[file.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!file.audioTracks[file.selectedAudioTrack].bReencode ? 2 : 1)) % file.filePath;
+				myMuxJob << format(muxJobTemplate) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1)) % fileInfo.filePath;
 			else
-				myMuxJob << format(muxJobTemplate_264) % file.outFileName % WorkDir % WorkDir % outDir % (file.selectedAudioTrack >= 0 ? (!file.audioTracks[file.selectedAudioTrack].bReencode ? file.audioTracks[file.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!file.audioTracks[file.selectedAudioTrack].bReencode ? 2 : 1));
+				myMuxJob << format(muxJobTemplate_264) % fileInfo.outFileName % WorkDir % WorkDir % outDir % (fileInfo.selectedAudioTrack >= 0 ? (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension : "ac3") : "m4a") % framerate % to_string(jobNumber) % to_string(jobNumber - (!fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode ? 2 : 1));
 
 			cout << "Created Mux Job." << endl;
-			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + file.outFileName + " - MKV" + rJobTag;
+			tempList += lJobTag + "job" + to_string(jobNumber) + " - " + fileInfo.outFileName + " - MKV" + rJobTag;
 			jobNumber++;
 		}
 		catch (std::exception e)
 		{
-			SetColor(12);
-			cout << "Mux Job ERROR: " << e.what() << endl;
-			SetColor(7);
+			MsgColor("MKV XML Job ERROR: " + string(e.what()), msg_erro);
 		}
 		myMuxJob.close();
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open MKV XML file!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open MKV XML file!", msg_erro);
 		return;
 	}
 
@@ -851,9 +835,7 @@ void createMeGUIJobs(videoFile file)
 	}
 	else 
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open joblists.xml to read!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open joblists.xml to read!", msg_erro);
 		return;
 	}
 
@@ -868,7 +850,7 @@ void createMeGUIJobs(videoFile file)
 				int x;
 				for (x = 0; x <= int(jobListRAW.size()) - 1; x++)
 				{
-					if (jobListRAW[x].find(file.outFileName) != string::npos)
+					if (jobListRAW[x].find(fileInfo.outFileName) != string::npos)
 					{
 						jobListRAW.erase(jobListRAW.begin() + x);
 						x--;
@@ -887,17 +869,13 @@ void createMeGUIJobs(videoFile file)
 		}
 		catch (std::exception e)
 		{
-			SetColor(12);
-			cout << "ERROR: " << e.what() << endl;
-			SetColor(7);
+			MsgColor("Writing MeGUI Jobs ERROR: " + string(e.what()), msg_erro);
 		}
 		myJobListWrite.close();
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open joblists.xml to write!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
 		return;
 	}
 }
@@ -916,15 +894,11 @@ void clearMeGUIJobs()
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open joblists.xml to clean!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
 		return;
 	}
 
-	SetColor(10);
-	cout << "Clearing MeGUI Jobs" << endl;
-	SetColor(7);
+	MsgColor("Clearing MeGUI Jobs", msg_info);
 
 	ofstream myJobListWrite(string(MeGUIDir + "joblists.xml"));
 	if (myJobListWrite.is_open())
@@ -963,17 +937,13 @@ void clearMeGUIJobs()
 		}
 		catch (std::exception e)
 		{
-			SetColor(12);
-			cout << "ERROR: " << e.what() << endl;
-			SetColor(7);
+			MsgColor("Clearing MeGUI Jobs ERROR: " + string(e.what()), msg_erro);
 		}
 		myJobListWrite.close();
 	}
 	else
 	{
-		SetColor(12);
-		cout << "ERROR: Unable to open joblists.xml to write!" << endl;
-		SetColor(7);
+		MsgColor("ERROR: Unable to open joblist.xml!", msg_erro);
 		return;
 	}
 }
@@ -1054,9 +1024,7 @@ int processOptions(int ac, char* av[])
 		ifstream ifs(config_file.c_str());
 		if (!ifs)
 		{
-			SetColor(12);
-			cout << "ERROR: Cannot open config file: " << config_file << "\n";
-			SetColor(7);
+			MsgColor("ERROR: Cannot open config file: " + config_file, msg_erro);
 			return errno;
 		}
 		else
@@ -1082,9 +1050,7 @@ int processOptions(int ac, char* av[])
 
 		if (mkvtoolnixDir.empty() || MeGUIDir.empty())
 		{
-			SetColor(12);
-			cout << "ERROR: Please fix your config file to include a working path to mkvtoolnix and MeGUI!\n";
-			SetColor(7);
+			MsgColor("ERROR: Please fix your config file to include a working path to mkvtoolnix and MeGUI!", msg_erro);
 			return errno;
 		}
 		else
@@ -1143,9 +1109,7 @@ int main(int argc, char *argv[])
 
 	if (processOptions(args.size(), av))
 	{
-		SetColor(12);
-		cout << "Error loading options/config.\n";
-		SetColor(7);
+		MsgColor("Error loading options/config.", msg_erro);
 		return errno;
 	}
 
@@ -1177,9 +1141,7 @@ int main(int argc, char *argv[])
 			continue;
 		else if (tempVideo.audioTracks.empty())
 		{
-			SetColor(14);
-			cout << "ERROR: No audio detected!\n";
-			SetColor(7);
+			MsgColor("WARNING: No audio detected!", msg_warn);
 			continue;
 		}
 
@@ -1205,9 +1167,7 @@ int main(int argc, char *argv[])
 				AddFontResource((LPCWSTR)tempArg.c_str());
 			}
 
-			SetColor(15);
-			cout << "Please make sure to manually install any fonts that were extracted!\n";
-			SetColor(7);
+			MsgColor("Please make sure to manually install any fonts that were extracted!", msg_whit);
 		}
 
 		cout << "Run MeGUI? (Y) ";
