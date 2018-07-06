@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LocalDebuggerCommandArguments>"E:\Videos\[Encoding]\[To Encode]\[Special Rules]\[NoobSubs] your name. 2016 (1080p Blu-ray Dual Audio 8bit AC3)[AF224105].mkv"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>"E:\Videos\[Encoding]\[To Encode]\[Finished]\Ai Tenchi Muyou - 01v2 [720p].mkv"</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>
