@@ -140,7 +140,6 @@ void cleanFilename(videoFile &fileInfo)
 	int pos1, pos2;
 
 	fileInfo.outFileName = fileInfo.fileName;
-	fileInfo.subDir = fileInfo.outFileName;
 
 	if (bCleanFilename)
 	{
@@ -244,7 +243,8 @@ void cleanFilename(videoFile &fileInfo)
 	while (!fileInfo.outFileName.empty() && fileInfo.outFileName[int(fileInfo.outFileName.size()) - 1] == ' ')
 		fileInfo.outFileName.pop_back();
 
-	
+	if (fileInfo.subDir.empty()) 
+		fileInfo.subDir = fileInfo.outFileName;
 }
 
 void selectTracks(videoFile &fileInfo)
