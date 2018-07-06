@@ -29,6 +29,8 @@ using namespace MediaInfoNameSpace;
 #include <locale>
 #include <codecvt>
 
+#include <TlHelp32.h>
+
 #include <boost/integer/common_factor_rt.hpp>
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
@@ -990,12 +992,72 @@ void initLang()
 	Languages[L"ko"] = L"kor";
 }
 
+DWORD FindProcessId(const String & processName)
+{
+	PROCESSENTRY32 processInfo;
+	processInfo.dwSize = sizeof(processInfo);
+
+	HANDLE processesSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+	if (processesSnapshot == INVALID_HANDLE_VALUE)
+		return 0;
+
+	Process32First(processesSnapshot, &processInfo);
+	if (!processName.compare(processInfo.szExeFile))
+	{
+		CloseHandle(processesSnapshot);
+		return processInfo.th32ProcessID;
+	}
+
+	while (Process32Next(processesSnapshot, &processInfo))
+	{
+		if (!processName.compare(processInfo.szExeFile))
+		{
+			CloseHandle(processesSnapshot);
+			return processInfo.th32ProcessID;
+		}
+	}
+
+	CloseHandle(processesSnapshot);
+	return 0;
+}
+
+bool TerminateMyProcess(DWORD processID)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processID);
+	if (!hProcess)
+		return false;
+
+	bool result = TerminateProcess(hProcess, 1);
+	CloseHandle(hProcess);
+	return result;
+}
+
 int wmain(int argc, wchar_t *argv[])
 {
 	videoFile tempVideo;
 	String tempArg;
 	vector<String> args;
 	vector<String> vidPaths;
+
+	if (FindProcessId(L"MeGUI.exe"))
+	{
+		MsgColor(__T("Please close MeGUI first!\n"), msg_erro);
+		wcout << "Close MeGUI now? [Y] : ";
+		getline(wcin, tempArg);
+		if (tempArg != L"" && tempArg != L"y" && tempArg != L"Y")
+			return errno;
+
+		TerminateMyProcess(FindProcessId(L"MeGUI.exe"));
+
+		Sleep(100);
+
+		if (FindProcessId(L"MeGUI.exe"))
+		{
+			MsgColor(__T("Could not close MeGUI?"), msg_erro);
+			getline(wcin, tempArg);
+			return errno;
+		}
+	}
 
 	for (size_t i = 0; i < argc; ++i)
 	{
@@ -1015,6 +1077,7 @@ int wmain(int argc, wchar_t *argv[])
 	if (processOptions(args.size(), av))
 	{
 		MsgColor(__T("Error loading options/config."), msg_erro);
+		getline(wcin, tempArg);
 		return errno;
 	}
 
@@ -1081,7 +1144,10 @@ int wmain(int argc, wchar_t *argv[])
 			_wsystem(String(L"start " + MeGUIDir + L"MeGUI.exe").data());
 	}
 	else
-		wcout << ": No MKV files in arguement!" << endl << "Use: MeGUIHelper.exe [filename] ..." << endl;
+	{
+		wcout << ": No MKV files in arguement!" << endl << "Use: MeGUIHelper.exe [options] [filename1] [filename2] ..." << endl;
+		getline(wcin, tempArg);
+	}
 
 	return 0;
 }
