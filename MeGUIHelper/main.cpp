@@ -113,6 +113,7 @@ vector<videoFile> videoList;
 map<String, bool> attchmentList;
 int maxJobs = 0;
 int jobNumber = 1;
+bool bExtractedAttachments = false;
 
 /******************************************************************/
 //	Function Declarations
@@ -240,21 +241,24 @@ int wmain(int argc, wchar_t *argv[])
 			createMeGUIJobs(videoList[i]);
 		}
 
-		if (bDoAttachments && bInstallFonts && !bJobFilesOnly)
+		if (bInstallFonts && !bJobFilesOnly && bExtractedAttachments)
 		{
-			for (map<String, bool>::iterator it = attchmentList.begin(); it != attchmentList.end(); ++it)
+			wcout << "Open font folder and run MeGUI? (Y) ";
+			getline(wcin, tempArg);
+			if (tempArg == L"y" || tempArg == L"Y" || tempArg == L"")
 			{
-				tempArg = WorkDir + it->first;
-				AddFontResource((LPCWSTR)tempArg.c_str());
+				_wsystem(String(L"start " + MeGUIDir + L"MeGUI.exe").data());
+				_wsystem(String(L"start " + WorkDir + L"Fonts").data());
 			}
-
-			MsgColor(__T("Please make sure to manually install any fonts that were extracted!"), msg_whit);
+		}
+		else
+		{
+			wcout << "Run MeGUI? (Y) ";
+			getline(wcin, tempArg);
+			if (tempArg == L"y" || tempArg == L"Y" || tempArg == L"")
+				_wsystem(String(L"start " + MeGUIDir + L"MeGUI.exe").data());
 		}
 
-		wcout << "Run MeGUI? (Y) ";
-		getline(wcin, tempArg);
-		if (tempArg == L"y" || tempArg == L"Y" || tempArg == L"")
-			_wsystem(String(L"start " + MeGUIDir + L"MeGUI.exe").data());
 	}
 	else
 	{
@@ -922,6 +926,7 @@ void extractMKV(videoFile fileInfo)
 
 	if (bDoAttachments && fileInfo.attachmentTracks.size())
 	{
+		bExtractedAttachments = true;
 		for each (trackInfo atch in fileInfo.attachmentTracks)
 			cmdstr += __T("attachments ") + to_wstring(atch.trackNum) + __T(":\"") + WorkDir + L"Fonts\\" + atch.filename + __T("\" ");
 	}
