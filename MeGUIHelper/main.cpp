@@ -519,26 +519,23 @@ videoFile getVideoInfo(const wchar_t* filepath, int jobNum)
 
 	MsgColor(__T("[Job ") + to_wstring(fileInfo.jobNum) + __T("/") + to_wstring(maxJobs) + __T("] MKV Info: ") + fileInfo.fileName, msg_info);
 
-	//	wcout << "Video Count: " << MI.Count_Get(Stream_Video) << " | Audio Count: " << MI.Count_Get(Stream_Audio) << " | Subtitle Count: " << MI.Count_Get(Stream_Text) << endl;
-	//	wcout << "Attachments: " << MI.Get(Stream_General, 0, __T("Attachments")) << endl;
-
 	// Video Info
 	if (MI.Count_Get(Stream_Video))
 	{
-		trackInfo tempTrack;
 
-		tempTrack.trackNum = stoi(MI.Get(Stream_Video, 0, L"ID")) - 1;
+		fileInfo.videoTrack.trackNum = stoi(MI.Get(Stream_Video, 0, L"ID")) - 1;
 
 		int resx = stoi(MI.Get(Stream_Video, 0, L"Width")),
 			resy = stoi(MI.Get(Stream_Video, 0, L"Height"));
 		if (resx && resy)
 		{
 			int cd = boost::integer::gcd(resx, resy);
-			tempTrack.AR = to_wstring(float(resx) / float(resy));
-			tempTrack.ARx = to_wstring(min(cd, (resx / cd)));
-			tempTrack.ARy = to_wstring(min(cd, (resy / cd)));
+			fileInfo.videoTrack.AR = to_wstring(float(resx) / float(resy));
+			fileInfo.videoTrack.ARx = to_wstring(min(cd, (resx / cd)));
+			fileInfo.videoTrack.ARy = to_wstring(min(cd, (resy / cd)));
 		}
-		fileInfo.videoTrack = tempTrack;
+		
+		fileInfo.videoTrack.bReencode = MI.Get(Stream_Video, 0, L"BitDepth") == L"10";
 
 		if (MI.Get(Stream_General, 0, L"Format") == L"Matroska")
 			fileInfo.videoTrack.extension = L"mkv";
@@ -1036,6 +1033,12 @@ void createMeGUIJobs(videoFile fileInfo)
 	String lJobTag = __T("\t\t<string>");
 	String rJobTag = __T("</string>\n");
 	String tempList = __T("");
+
+	if (!fileInfo.videoTrack.bReencode && !fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode && fileInfo.selecteSubtitleTrack < 0)
+	{
+		MsgColor(__T("[Job ") + to_wstring(fileInfo.jobNum) + __T("/") + to_wstring(maxJobs) + __T("] Skipping MeGUI Jobs: ") + fileInfo.outFileName + __T("\n\tIt does not require a re-encode!"), msg_warn);
+		return;
+	}
 
 	MsgColor(__T("[Job ") + to_wstring(fileInfo.jobNum) + __T("/") + to_wstring(maxJobs) + __T("] Creating MeGUI Jobs: ") + fileInfo.outFileName, msg_info);
 
