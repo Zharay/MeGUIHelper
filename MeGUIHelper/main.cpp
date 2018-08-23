@@ -29,6 +29,7 @@ using namespace MediaInfoNameSpace;
 #include <locale>
 #include <codecvt>
 #include <TlHelp32.h>
+#include <filesystem>
 
 #include <boost/integer/common_factor_rt.hpp>
 #include <boost/format.hpp>
@@ -60,6 +61,7 @@ bool bCleanParenthesis;
 bool bClearMeGUIJobs;
 bool bExtract264;
 bool bChooseTrack;
+bool bUseConditionalExternalSubs = true;
 
 const String AVSTemplate = __T("LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\lsmash\\LSMASHSource.dll\")\nLWLibavVideoSource(\"%1%\")\n");
 const String AVSTemplate_264 = __T("LoadPlugin(\"E:\\Downloads\\[Media]\\MeGUI-2836-32\\tools\\ffms\\ffms2.dll\")\nFFVideoSource(\"%2%%1%.264\")\n");
@@ -91,12 +93,14 @@ struct trackInfo {
 	int trackNum = -1;
 	bool bReencode = false;
 	bool bIsFont = false;
+	bool bIsExternal = false;
 };
 
 struct videoFile {
 	String filePath = __T("");
 	String fileName = __T("");
 	String parentDir = __T("");
+	String parentDirName = __T("");
 	String outFileName = __T("");
 	String subDir = __T("");
 
@@ -137,6 +141,7 @@ void MsgColor(String msg, int color);
 void MsgColor(string msg, int color);
 DWORD FindProcessId(const String & processName);
 bool TerminateMyProcess(DWORD processID);
+bool DoesFileExist(String filename);
 
 // Video Info Functiuons
 videoFile getVideoInfo(const wchar_t* filepath, int jobNum);
@@ -306,6 +311,7 @@ int processOptions(int ac, wchar_t* av[])
 
 		po::options_description operations("Operation Options");
 		operations.add_options()
+			("bUseConditionalExternalSubs,x", po::value<bool>(&bUseConditionalExternalSubs)->default_value(true), "If no sub was found in the file, it will locate an external sub file under the same name.")
 			("bJobFilesOnly,J", po::value<bool>(&bJobFilesOnly)->default_value(false), "Create job scripts only. (DOES NOT EXTRACT)")
 			("bClearMeGUIJobs,j", po::value<bool>(&bClearMeGUIJobs)->default_value(false), "Clean all old jobs (MeGUI must be closed!).")
 			;
@@ -501,6 +507,12 @@ bool TerminateMyProcess(DWORD processID)
 	return result;
 }
 
+bool DoesFileExist(String filename)
+{
+	wifstream f(filename.data());
+	return f.good();
+}
+
 /******************************************************************/
 //	Video Info Functions
 /******************************************************************/
@@ -520,6 +532,12 @@ videoFile getVideoInfo(const wchar_t* filepath, int jobNum)
 
 	fileInfo.filePath = filepath;
 	fileInfo.fileName = fileInfo.filePath.substr(fileInfo.filePath.find_last_of(__T("\\")) + 1, fileInfo.filePath.length() - fileInfo.filePath.find_last_of(__T("\\")) - 5);
+	fileInfo.parentDir = fileInfo.filePath.substr(0, fileInfo.filePath.find_last_of(L"\\") + 1);
+
+	String tempParentDirName = fileInfo.parentDir.substr(0, fileInfo.parentDir.find_last_of(L"\\"));
+	String tempParentofParentDir = tempParentDirName.substr(0, tempParentDirName.find_last_of(L"\\"));
+
+	fileInfo.parentDirName = fileInfo.filePath.substr(tempParentofParentDir.length() + 1, tempParentDirName.length() - 1 - tempParentofParentDir.length());
 	fileInfo.jobNum = jobNum;
 
 	//	wcout << __T("\r\n\r\nInform with Complete=false\r\n");
@@ -630,6 +648,28 @@ videoFile getVideoInfo(const wchar_t* filepath, int jobNum)
 			tempTrack.extension = L"ass";
 			MsgColor(__T("Warning: Unknown subtitle format (") + MI.Get(Stream_Text, i, L"Format") + __T("). Will re-encode regardless if chosen."), msg_warn);
 			break;
+		}
+
+		fileInfo.subtitleTracks.push_back(tempTrack);
+	}
+	if (!fileInfo.subtitleTracks.size() && bUseConditionalExternalSubs)
+	{
+		trackInfo tempTrack;
+		
+		if (DoesFileExist(fileInfo.filePath.substr(0, fileInfo.filePath.length() - 4) + L".ass"))
+			tempTrack.extension = L"ass";
+		else if (DoesFileExist(fileInfo.filePath + L".srt"))
+			tempTrack.extension = L"srt";
+		else if (DoesFileExist(fileInfo.filePath + L".sup"))
+			tempTrack.extension = L"sup";
+
+
+		if (!tempTrack.extension.empty())
+		{
+			tempTrack.language = L"eng";
+			tempTrack.trackNum = -1;
+			tempTrack.filename = fileInfo.fileName + L"." + tempTrack.extension;
+			tempTrack.bIsExternal = true;
 		}
 
 		fileInfo.subtitleTracks.push_back(tempTrack);
@@ -777,6 +817,17 @@ void cleanFilename(videoFile &fileInfo)
 	while (!fileInfo.outFileName.empty() && fileInfo.outFileName[int(fileInfo.outFileName.size()) - 1] == ' ')
 		fileInfo.outFileName.pop_back();
 
+	// Finally, if the file is just numbers, affix the folder name if possible.
+	try {
+		// If this works, we only have numbers for a filename and subDir.
+		stoi(fileInfo.outFileName);
+
+		if (!fileInfo.parentDirName.empty())
+		fileInfo.subDir = fileInfo.parentDirName;
+		fileInfo.outFileName = fileInfo.parentDirName + L" - " + fileInfo.outFileName;
+	}
+	catch (...) { }
+
 	if (fileInfo.subDir.empty())
 		fileInfo.subDir = fileInfo.outFileName;
 }
@@ -848,7 +899,7 @@ void selectTracks(videoFile &fileInfo)
 	if (fileInfo.subtitleTracks.size() == 1)
 		fileInfo.selecteSubtitleTrack = 0;
 	else if (!fileInfo.subtitleTracks.size())
-		fileInfo.selecteSubtitleTrack = -1;
+			fileInfo.selecteSubtitleTrack = -1;
 	else
 	{
 		int i = 0;
@@ -927,7 +978,7 @@ void extractMKV(videoFile fileInfo)
 	if (fileInfo.selectedAudioTrack >= 0)
 		cmdstr += __T("tracks ") + to_wstring(fileInfo.audioTracks[fileInfo.selectedAudioTrack].trackNum) + __T(":\"") + WorkDir + fileInfo.outFileName + __T(".") + fileInfo.audioTracks[fileInfo.selectedAudioTrack].extension + __T("\" ");
 
-	if (fileInfo.selecteSubtitleTrack >= 0)
+	if (fileInfo.selecteSubtitleTrack >= 0 && !fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].bIsExternal)
 		cmdstr += __T("tracks ") + to_wstring(fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].trackNum) + __T(":\"") + WorkDir + fileInfo.outFileName + __T(".") + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension + __T("\" ");
 
 	if (bDoAttachments && fileInfo.attachmentTracks.size())
@@ -938,6 +989,24 @@ void extractMKV(videoFile fileInfo)
 	}
 
 	_wsystem(cmdstr.data());
+
+	// Extranal file coping
+	if (fileInfo.selecteSubtitleTrack >= 0 && fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].bIsExternal)
+	{
+		try {
+			MsgColor(L"Copying subtitle (" + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename + L") to WorkDir", msg_info);
+			wifstream sourceFile(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename, ios::binary);
+			wofstream destinationFile(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension, ios::binary);
+
+			destinationFile << sourceFile.rdbuf();
+			destinationFile.close();
+			sourceFile.close();
+		}
+		catch (std::exception e)
+		{
+			MsgColor("Copying subtitle ERROR: " + string(e.what()), msg_erro);
+		}
+	}
 }
 
 void extractMP4(videoFile fileInfo)
@@ -1194,6 +1263,14 @@ void createMeGUIJobs(videoFile fileInfo)
 	wofstream myJobListWrite(String(MeGUIDir + __T("joblists.xml")));
 	if (myJobListWrite.is_open())
 	{
+
+		bool bIsOutFilenameNum = false;
+		try {
+			stoi(fileInfo.outFileName);
+			bIsOutFilenameNum = true;
+		}
+		catch (...) { }
+
 		try {
 			if (jobListRAW.size() == 0)
 				myJobListWrite << wformat(jobListTemplate) % tempList;
@@ -1202,7 +1279,7 @@ void createMeGUIJobs(videoFile fileInfo)
 				int x;
 				for (x = 0; x <= int(jobListRAW.size()) - 1; x++)
 				{
-					if (jobListRAW[x].find(fileInfo.outFileName) != String::npos)
+					if ((jobListRAW[x].find(fileInfo.outFileName) != String::npos && !bIsOutFilenameNum) || (bIsOutFilenameNum && jobListRAW[x].find(fileInfo.outFileName + L" - ") != String::npos))
 					{
 						jobListRAW.erase(jobListRAW.begin() + x);
 						x--;
