@@ -19,4 +19,6 @@
 
 *.suo
 
+*.dll
+
 MeGUIHelper.v12.suo
