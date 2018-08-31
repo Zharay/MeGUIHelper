@@ -1115,7 +1115,7 @@ void createMeGUIJobs(videoFile fileInfo)
 
 	if (!fileInfo.videoTrack.bReencode && !fileInfo.audioTracks[fileInfo.selectedAudioTrack].bReencode && fileInfo.selecteSubtitleTrack < 0)
 	{
-		MsgColor(L"[Job " + to_wstring(fileInfo.jobNum) + L"/" + to_wstring(maxJobs) + L"] Skipping MeGUI Jobs: " + fileInfo.outFileName + L"\n\Video file does not require a re-encode!", msg_warn);
+		MsgColor(L"[Job " + to_wstring(fileInfo.jobNum) + L"/" + to_wstring(maxJobs) + L"] Skipping MeGUI Jobs: " + fileInfo.outFileName + L"\nVideo file does not require a re-encode!", msg_warn);
 		return;
 	}
 
