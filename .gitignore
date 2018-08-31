@@ -24,3 +24,9 @@
 MeGUIHelper.v12.suo
 
 *.lastbuildstate
+
+*.ipch
+
+*.db
+
+*.opendb
