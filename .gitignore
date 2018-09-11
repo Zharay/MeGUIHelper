@@ -30,3 +30,6 @@ MeGUIHelper.v12.suo
 *.db
 
 *.opendb
+
+*.vcxproj.user
+*.user
