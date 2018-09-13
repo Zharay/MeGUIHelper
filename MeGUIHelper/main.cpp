@@ -37,6 +37,8 @@ using namespace MediaInfoNameSpace;
 #include <boost/algorithm/string/split.hpp>
 namespace po = boost::program_options;
 
+#include "resource.h"
+
 #pragma warning(disable : 4996)
 
 using namespace std;
@@ -150,6 +152,7 @@ void MsgColor(string msg, WORD color);
 DWORD FindProcessId(const String & processName);
 bool TerminateProcess(DWORD processID);
 bool DoesFileExist(String filename);
+bool ExtractResource(WORD resourceID, String resourceName, String fileOuput);
 
 // Video Info Functiuons
 videoFile getVideoInfo(const wchar_t* filepath, int jobNum);
@@ -163,6 +166,7 @@ void extractMP4(videoFile fileInfo);
 // MeGUI Jobs
 void clearMeGUIJobs();
 void createMeGUIJobs(videoFile fileInfo);
+bool checkProfiles();
 
 /******************************************************************/
 //	Main Function
@@ -260,6 +264,11 @@ int wmain(int argc, wchar_t *argv[])
 	// We have videos! Now to clean them and process their jobs.
 	if (videoList.size() != 0)
 	{
+		// Check if we have the x264 profiles and create it if we don't.
+		// @TODO : Profiles for other devices and a way to choose them.
+		if (!checkProfiles())
+			return errno;
+
 		if (bClearMeGUIJobs)
 			clearMeGUIJobs();
 		for (int i = 0; i <= (int(videoList.size()) - 1); i++)
@@ -307,9 +316,19 @@ int wmain(int argc, wchar_t *argv[])
 // Using Boost's options library to handle flag options and config file.
 int processOptions(int ac, wchar_t* av[])
 {
+
+	// Firstly, if we don't have a config file, create a default one for the user using a built in resource.
+	if (!DoesFileExist(L"MeGUIHelper.cfg"))
+	{
+		if (!ExtractResource(IDR_CONFIG, L"MeGUIHelper.cfg", L"MeGUIHelper.cfg"))
+		{
+			MsgColor(L"ERROR: Cannot create config file! Read-only directory?", msg_erro);
+			return errno;
+		}
+	}
+
 	try {
 		String config_file;
-
 		string _config_file, _MeGUIDir, _WorkDir, _OutputDir, _defaultAudioLang, _defaultSubtitleLang, _customEpisodeRegex;
 
 		po::options_description basic("Base Options");
@@ -467,23 +486,10 @@ int processOptions(int ac, wchar_t* av[])
 				MsgColor("Copying MediaInfo.dll ERROR: " + string(e.what()), msg_erro);
 			}
 		}
-		else
+		else if (!DoesFileExist(MeGUIDir + L"\\MediaInfo.dll"))
 		{
 			MsgColor(L"ERROR: Could not find MediaInfo.dll in either MeGUI or MeGUIHelper's directory! Is MeGUI set up correctly in the config file?", msg_erro);
 			return errno;
-		}
-
-		// A cool thing about using MeGUI, it already has MediaInfo.dll, so we copy that to use ourselves.
-		if (!DoesFileExist(L"MediaInfo.dll") && DoesFileExist(MeGUIDir + L"\\MediaInfo.dll"))
-		{
-			try {
-				MsgColor(L"Copying MediaInfo.dll from MeGUI", msg_info);
-				CopyFile(const_cast<LPWSTR>(String(MeGUIDir + L"\\MediaInfo.dll").c_str()), L"MediaInfo.dll", true);
-			}
-			catch (std::exception e)
-			{
-				MsgColor("Copying MediaInfo.dll ERROR: " + string(e.what()), msg_erro);
-			}
 		}
 
 	}
@@ -583,6 +589,40 @@ bool DoesFileExist(String filename)
 {
 	wifstream f(filename.data());
 	return f.good();
+}
+
+// Resource extraction for profiles and configuration files. Cannot be used for dynamic content like the job files.
+bool ExtractResource(WORD resourceID, String resourceName, String fileOuput)
+{
+	HINSTANCE hInstance = (HINSTANCE)GetModuleHandle(NULL);
+	HRSRC hResource = FindResourceW(hInstance, MAKEINTRESOURCEW(resourceID), L"TEXT");
+	if (hResource)
+	{
+		HGLOBAL hLoadedResource = LoadResource(hInstance, hResource);
+
+		if (hLoadedResource)
+		{
+			LPVOID pLockedResource = LockResource(hLoadedResource);
+
+			if (pLockedResource)
+			{
+				DWORD dwResourceSize = SizeofResource(hInstance, hResource);
+
+				if (0 != dwResourceSize)
+				{
+					HANDLE hFile = CreateFile(const_cast<LPWSTR>(fileOuput.c_str()), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					DWORD dwByteWritten;
+					WriteFile(hFile, pLockedResource, dwResourceSize, &dwByteWritten, NULL);
+					CloseHandle(hFile);
+					FreeResource(hLoadedResource);
+					MsgColor(L"Extracted resource (" + resourceName + L")", msg_info);
+					return true;
+				}
+			}
+		}
+	}
+	MsgColor(L"Failed to extract resource (" + resourceName + L")", msg_erro);
+	return false;
 }
 
 /******************************************************************/
@@ -1415,4 +1455,17 @@ void createMeGUIJobs(videoFile fileInfo)
 		MsgColor(L"ERROR: Unable to open joblist.xml!", msg_erro);
 		return;
 	}
+}
+
+// We store the custom profiles in a resource and extract them when needed
+// @TODO : Custom profiles and a way to choose them for XOne, Vita, and other such devices.
+bool checkProfiles()
+{
+	// Extract custom video profiles as needed.
+	if (!DoesFileExist(MeGUIDir + L"\\allprofiles\\x264\\x264_dp_ PS4.xml"))
+	{
+		if (!ExtractResource(IDR_PS4VIDEO, L"x264_dp_ PS4.xml", MeGUIDir + L"\\allprofiles\\x264\\x264_dp_ PS4.xml"))
+			return false;
+	}
+	return true;
 }

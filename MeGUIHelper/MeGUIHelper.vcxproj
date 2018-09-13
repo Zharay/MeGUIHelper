@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -81,10 +81,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\[Danny%27s Stuff]\[Projects]\MeGUIHelper\MeGUIHelper\main.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\..\..\..\[Danny%27s Stuff]\[Projects]\MeGUIHelper\MeGUIHelper\MeGUIHelper.cfg">
+    <Text Include="MeGUIHelper.cfg">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </DeploymentContent>
@@ -92,7 +92,14 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\[Danny%27s Stuff]\[Projects]\MeGUIHelper\MeGUIHelper\MediaInfoDLL\MediaInfoDLL.h" />
+    <ClInclude Include="MediaInfoDLL\MediaInfoDLL.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MeGUIHelper.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="x264_dp_ PS4.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

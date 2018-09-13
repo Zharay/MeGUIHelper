@@ -33,3 +33,7 @@ MeGUIHelper.v12.suo
 
 *.vcxproj.user
 *.user
+
+*.aps
+
+*.res
