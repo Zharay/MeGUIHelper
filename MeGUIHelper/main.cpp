@@ -401,7 +401,7 @@ int processOptions(int ac, wchar_t* av[])
 		}
 		catch (...)
 		{
-			MsgColor(L"ERROR: Something went wrong with the options! Most likely an unknown variable in the config file.", msg_erro);
+			MsgColor(L"ERROR: Something went wrong with the configuration! Most likely an unknown variable in the config file?", msg_erro);
 			return errno;
 		}
 
@@ -452,8 +452,22 @@ int processOptions(int ac, wchar_t* av[])
 		else
 			OutputDir = String(cPath) + L"//";
 
+		// Lastly, lets figure out if we have the proper DLLs.
 		if (bEnableSUP && !DoesFileExist(MeGUIDir + L"\\tools\\avisynth_plugin\\SupTitle.dll"))
 			MsgColor(L"WARNING: SUP subtitles requires SupTitle plugin in MeGUI's AviSynth plugin folder!", msg_erro);
+
+		// A cool thing about using MeGUI, it already has MediaInfo.dll, so we copy that to use ourselves.
+		if (!DoesFileExist(L"MediaInfo.dll") && DoesFileExist(MeGUIDir + L"\\MediaInfo.dll"))
+		{
+			try {
+				MsgColor(L"Copying MediaInfo.dll from MeGUI", msg_info);
+				CopyFile(const_cast<LPWSTR>(String(MeGUIDir + L"\\MediaInfo.dll").c_str()), L"MediaInfo.dll", true);
+			}
+			catch (std::exception e)
+			{
+				MsgColor("Copying MediaInfo.dll ERROR: " + string(e.what()), msg_erro);
+			}
+		}
 
 	}
 	catch (std::exception e)
@@ -1065,12 +1079,7 @@ void extractMKV(videoFile fileInfo)
 	{
 		try {
 			MsgColor(L"Copying subtitle (" + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename + L") to WorkDir", msg_info);
-			wifstream sourceFile(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename, ios::binary);
-			wofstream destinationFile(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension, ios::binary);
-
-			destinationFile << sourceFile.rdbuf();
-			destinationFile.close();
-			sourceFile.close();
+			CopyFile(const_cast<LPWSTR>(String(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename).c_str()), const_cast<LPWSTR>(String(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension).c_str()), true);
 		}
 		catch (std::exception e)
 		{
