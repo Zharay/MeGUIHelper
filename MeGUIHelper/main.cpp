@@ -473,6 +473,19 @@ int processOptions(int ac, wchar_t* av[])
 			return errno;
 		}
 
+		// A cool thing about using MeGUI, it already has MediaInfo.dll, so we copy that to use ourselves.
+		if (!DoesFileExist(L"MediaInfo.dll") && DoesFileExist(MeGUIDir + L"\\MediaInfo.dll"))
+		{
+			try {
+				MsgColor(L"Copying MediaInfo.dll from MeGUI", msg_info);
+				CopyFile(const_cast<LPWSTR>(String(MeGUIDir + L"\\MediaInfo.dll").c_str()), L"MediaInfo.dll", true);
+			}
+			catch (std::exception e)
+			{
+				MsgColor("Copying MediaInfo.dll ERROR: " + string(e.what()), msg_erro);
+			}
+		}
+
 	}
 	catch (std::exception e)
 	{
