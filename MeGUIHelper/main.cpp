@@ -235,7 +235,6 @@ int wmain(int argc, wchar_t *argv[])
 		delete [] av[i];
 	}
 	delete[] av;
-	// Finished processing options
 
 	// Initialize the language map
 	initLang();
@@ -274,7 +273,7 @@ int wmain(int argc, wchar_t *argv[])
 
 		// @TODO : Installing fonts from command line! I could not figure it out without some complex code.
 		if (bInstallFonts && !bJobFilesOnly && bExtractedAttachments)
-		{ // For now it just opents the folder containing any fonts found. You have to manually install them yourself.
+		{ // For now it just opens the folder containing any fonts found. You have to manually install them yourself.
 			wcout << "Open font folder and run MeGUI? (Y) ";
 			getline(wcin, tempArg);
 			if (tempArg == L"y" || tempArg == L"Y" || tempArg == L"")
@@ -401,7 +400,7 @@ int processOptions(int ac, wchar_t* av[])
 		}
 		catch (...)
 		{
-			MsgColor(L"ERROR: Something went wrong with the options! Most likely an unknown variable in the config file.", msg_erro);
+			MsgColor(L"ERROR: Something went wrong with the configuration! Most likely an unknown variable in the config file?", msg_erro);
 			return errno;
 		}
 
@@ -452,8 +451,27 @@ int processOptions(int ac, wchar_t* av[])
 		else
 			OutputDir = String(cPath) + L"//";
 
+		// Lastly, lets figure out if we have the proper DLLs.
 		if (bEnableSUP && !DoesFileExist(MeGUIDir + L"\\tools\\avisynth_plugin\\SupTitle.dll"))
-			MsgColor(L"WARNING: SUP subtitles requires SupTitle plugin in MeGUI's AviSynth plugin folder!", msg_erro);
+			MsgColor(L"WARNING: SUP subtitles requires SupTitle plugin in MeGUI's AviSynth plugin folder!", msg_warn);
+
+		// A cool thing about using MeGUI, it already has MediaInfo.dll, so we copy that to use ourselves.
+		if (!DoesFileExist(L"MediaInfo.dll") && DoesFileExist(MeGUIDir + L"\\MediaInfo.dll"))
+		{
+			try {
+				MsgColor(L"Copying MediaInfo.dll from MeGUI", msg_info);
+				CopyFile(const_cast<LPWSTR>(String(MeGUIDir + L"\\MediaInfo.dll").c_str()), L"MediaInfo.dll", true);
+			}
+			catch (std::exception e)
+			{
+				MsgColor("Copying MediaInfo.dll ERROR: " + string(e.what()), msg_erro);
+			}
+		}
+		else
+		{
+			MsgColor(L"ERROR: Could not find MediaInfo.dll in either MeGUI or MeGUIHelper's directory! Is MeGUI set up correctly in the config file?", msg_erro);
+			return errno;
+		}
 
 	}
 	catch (std::exception e)
@@ -730,6 +748,8 @@ videoFile getVideoInfo(const wchar_t* filepath, int jobNum)
 	}
 
 	// Attachments - We generate track information for each attachment we find.
+	//		Unlike the stuff above, we have to parse a long string output deliminated by /
+	//		We also just assume that all attachments are fonts. Since we don't install them, this is fine.
 	if (!MI.Get(Stream_General, 0, L"Attachments").empty())
 	{
 		String tmpString = MI.Get(Stream_General, 0, L"Attachments");
@@ -814,7 +834,7 @@ void cleanFilename(videoFile &fileInfo)
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(L"(.*)\\b(\\d\\d)\\b.*"), L"$1$2");
 		}
 		else if (regex_match(fileInfo.outFileName, wregex(L"(.*\\b)(\\d\\d)\\b.*")))
-		{// [Title ][00]
+		{// [Title] [00]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(L"(.*) (\\d\\d)\\b.*"), L"$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(L"(.*)\\b(\\d\\d)\\b.*"), L"$1$2");
 		}
@@ -824,7 +844,7 @@ void cleanFilename(videoFile &fileInfo)
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(L"(.*)\\b(\\d\\d)v\\d\\b.*"), L"$1$2");
 		}
 		else if (regex_match(fileInfo.outFileName, wregex(L"(.*\\b)(\\d\\d)v\\d\\b.*")))
-		{// [Title ][00]v[0]
+		{// [Title] [00]v[0]
 			fileInfo.subDir = regex_replace(fileInfo.outFileName, wregex(L"(.*) (\\d\\d)v\\d\\b.*"), L"$1");
 			fileInfo.outFileName = regex_replace(fileInfo.outFileName, wregex(L"(.*)\\b(\\d\\d)v\\d\\b.*"), L"$1$2");
 		}
@@ -1065,12 +1085,7 @@ void extractMKV(videoFile fileInfo)
 	{
 		try {
 			MsgColor(L"Copying subtitle (" + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename + L") to WorkDir", msg_info);
-			wifstream sourceFile(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename, ios::binary);
-			wofstream destinationFile(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension, ios::binary);
-
-			destinationFile << sourceFile.rdbuf();
-			destinationFile.close();
-			sourceFile.close();
+			CopyFile(const_cast<LPWSTR>(String(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename).c_str()), const_cast<LPWSTR>(String(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension).c_str()), true);
 		}
 		catch (std::exception e)
 		{
@@ -1110,12 +1125,7 @@ void extractMP4(videoFile fileInfo)
 	{
 		try {
 			MsgColor(L"Copying subtitle (" + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename + L") to WorkDir", msg_info);
-			wifstream sourceFile(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename, ios::binary);
-			wofstream destinationFile(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension, ios::binary);
-
-			destinationFile << sourceFile.rdbuf();
-			destinationFile.close();
-			sourceFile.close();
+			CopyFile(const_cast<LPWSTR>(String(fileInfo.parentDir + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].filename).c_str()), const_cast<LPWSTR>(String(WorkDir + fileInfo.outFileName + L"." + fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension).c_str()), true);
 		}
 		catch (std::exception e)
 		{
@@ -1171,7 +1181,7 @@ void clearMeGUIJobs()
 					continue;
 				}
 				else if (bClearMeGUIJobs && jobListRAW[x].find(L"<mainJobList>") != String::npos)
-				{ // When we find <mainJobList>, replace it with <mainJobList /> to complete the cleaning.
+				{ // When we find <mainJobList>, replace it with <mainJobList />
 					jobListRAW[x] = regex_replace(jobListRAW[x], wregex(L"mainJobList"), L"mainJobList /");
 				}
 				else if (bClearMeGUIJobs && jobListRAW[x].find(L"</mainJobList>") != String::npos)
@@ -1226,7 +1236,7 @@ void createMeGUIJobs(videoFile fileInfo)
 			else
 				myAVSFile << wformat(AVSTemplate_264) % MeGUIDir % fileInfo.outFileName % WorkDir % (fileInfo.videoTrack.bColorCorrect ? L", format=\"YUV420P8\"" : L"");
 
-			// Hard coding subtitles are handled here. Note the use of a third-party plugin for SUP files.
+			// Hard coding subtitles are handled here. Note the use of a third-party plugin for SUP subtitles.
 			if (fileInfo.selecteSubtitleTrack != -1 && (fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension == L"ass" || fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension == L"srt"))
 				myAVSFile << wformat(AVSTemplate_Subs) % MeGUIDir % fileInfo.outFileName % WorkDir % fileInfo.subtitleTracks[fileInfo.selecteSubtitleTrack].extension;
 			else if (fileInfo.selecteSubtitleTrack != -1)
@@ -1346,6 +1356,7 @@ void createMeGUIJobs(videoFile fileInfo)
 		return;
 	}
 
+	// Write the output file as we edit the joblist.
 	wofstream myJobListWrite(String(MeGUIDir + L"joblists.xml"));
 	if (myJobListWrite.is_open())
 	{
@@ -1372,7 +1383,7 @@ void createMeGUIJobs(videoFile fileInfo)
 					}
 					else if (jobListRAW[x].find(L"<mainJobList />") != String::npos)		// Replace the empty list with our own.
 						jobListRAW[x] = L"<mainJobList>\n" + tempList + L"</mainJobList>";
-					else if (jobListRAW[x].find(L"</mainJobList>") != String::npos)			// Add to the end of the list.
+					else if (jobListRAW[x].find(L"</mainJobList>") != String::npos)			// Add to the end of the list if its not an empty list.
 						jobListRAW[x] = tempList + jobListRAW[x];
 
 					myJobListWrite << jobListRAW[x] << endl;
